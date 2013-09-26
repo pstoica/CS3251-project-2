@@ -21,7 +21,7 @@ client: client.c
 	$(CC) client.c -o GTmyMusic
 
 server: server.c
-	$(CC) -lcrypto server.c -o GTmyMusic
+	$(CC) server.c -o GTmyMusicServer
 
 clean:
 	    rm -f client server *.o

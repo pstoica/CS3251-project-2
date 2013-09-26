@@ -24,13 +24,13 @@
 
 
 void DieWithError(char *errorMessage);          /* Error handler */
-void HandleTCPClient(int clntSocket);           /* TCP client handling function */
+void HandleTCPClient(int clientSock);           /* TCP client handling function */
 int SetupTCPServerSocket(unsigned short port); /* Create TCP server socket */
 int AcceptTCPConnection(int servSock);          /* Accept TCP connection request */
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        DieWithError("Parameter(s): <Timeout (secs.)> <Port/Service1> ...")
+        DieWithError("Parameter(s): <Timeout (secs.)> <Port/Service1> ...");
     }
 
     fd_set sockSet;               /* set of socket descriptors for select() */
@@ -41,8 +41,10 @@ int main(int argc, char *argv[]) {
 
     struct timeval selTimeout; /* timeout for select() */
 
-    for (int port = 0; port < noPorts; port++) {
-        servSock[port] = SetupTCPServerSocket(argv[port + 2]);
+    int port;
+
+    for (port = 0; port < noPorts; port++) {
+        servSock[port] = SetupTCPServerSocket(atoi(argv[port + 2]));
 
         if (servSock[port] > maxDescriptor) {
             maxDescriptor = servSock[port];
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]) {
         selTimeout.tv_sec = timeout;
         selTimeout.tv_usec = 0;
 
-        for (int port = 0; port < noPorts; port++) {
+        for (port = 0; port < noPorts; port++) {
             FD_SET(servSock[port], &sockSet);
         }
 
@@ -66,7 +68,7 @@ int main(int argc, char *argv[]) {
             printf("No requests for %ld secs... Server still alive\n", timeout);
         } else {
             // process connection requests
-            for (int port = 0; port < noPorts; port++) {
+            for (port = 0; port < noPorts; port++) {
                 if (FD_ISSET(servSock[port], &sockSet)) {
                     printf("Request on port %d: ", port);
                     HandleTCPClient(AcceptTCPConnection(servSock[port]));
@@ -75,14 +77,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (int port = 0; port < noPorts; port++) {
+    for (port = 0; port < noPorts; port++) {
         close(servSock[port]);
     }
 
     exit(0);
 }
 
-int SetupTCPServerSocket(const char *service) {
+int SetupTCPServerSocket(unsigned short port) {
     int servSock;
     struct sockaddr_in servAddr;      /* Local address */
 
@@ -90,27 +92,53 @@ int SetupTCPServerSocket(const char *service) {
     memset(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family = AF_INET;
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servAddr.sin_port = htons(atoi(service));
+    servAddr.sin_port = htons(port);
 
     /* Bind to local address structure */
     if (bind(servSock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
-        DieWithError("bind() failed")
+        DieWithError("bind() failed");
     }
 
     /* Listen for incoming connections */
-    if (listen(servSock, 5) < 0) {
-        DieWithError("listen() failed")
+    if (listen(servSock, MAXPENDING) < 0) {
+        DieWithError("listen() failed");
     }
 
     return servSock;
 }
 
 int AcceptTCPConnection(int servSock) {
+    struct sockaddr_storage clientAddr; // Client address
+    socklen_t clientAddrLen = sizeof(clientAddr);
 
+    /* wait for a client to connect */
+    int clientSock = accept(servSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
+    if (clientSock < 0) {
+        DieWithError("accept() failed");
+    }
+
+    return clientSock;
 }
 
 void HandleTCPClient(int clientSock) {
+    char buffer[RCVBUFSIZE]; // Buffer for echo string
+    ssize_t numBytesRcvd = recv(clientSock, buffer, RCVBUFSIZE, 0);
 
+    if (numBytesRcvd < 0) {
+        DieWithError("recv() failed");
+    }
+
+    while (numBytesRcvd > 0) {
+        /* FIXME: parse data from client here */
+
+        // see if there is more data to receive
+        numBytesRcvd = recv(clientSock, buffer, RCVBUFSIZE, 0);
+        if (numBytesRcvd < 0) {
+            DieWithError("recv() failed");
+        }
+    }
+
+    close(clientSock);
 }
 
 void DieWithError(char *message) {
