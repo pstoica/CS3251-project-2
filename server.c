@@ -72,10 +72,21 @@ void *thread_main(void *threadArgs) {
 }
 
 void handle_client(int clientSock) {
-    char *message = get_request(clientSock);
+    // can we accept() once and keep the connection open?
+    while(true) {
+        char *message = get_request(clientSock);
 
-    printf("Received Request: %s", message);
-    
+        printf("Received Request: %s", message);
 
-    close(clientSock);
+        // parse commands
+        if (strcmp(message, "LIST")) {
+
+        } else if (strcmp(message, "DIFF")) {
+
+        } else if (strcmp(command, "PULL")) {
+
+        } else if (strcmp(command, "LEAVE")) {
+            close(clientSock);
+        }
+    }
 }
