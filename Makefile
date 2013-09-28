@@ -17,11 +17,14 @@ ifeq ($(OS), SunOS)
 
 all: client server 
 
-client: client.c
-	$(CC) client.c -o GTmyMusic
+client: client.o utilities.o
+	$(CC) -o GTmyMusic client.o utilities.o
 
-server: server.c
-	$(CC) server.c -o GTmyMusicServer
+server: server.o utilities.o
+	$(CC) -pthread -o GTmyMusicServer server.o utilities.o
+
+%.o : %.c %.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	    rm -f client server *.o
+	rm -f client server *.o

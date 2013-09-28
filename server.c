@@ -17,131 +17,65 @@
 #include <unistd.h>         /* for close() */
 #include <string.h>         /* support any string ops */
 #include <stdbool.h>
+#include <pthread.h>
+#include "utilities.h"
 
-#define RCVBUFSIZE 512      /* The receive buffer size */
-#define SNDBUFSIZE 512      /* The send buffer size */
 #define MAXPENDING 5        /* Maximum outstanding connection requests */
 
-
-void DieWithError(char *errorMessage);          /* Error handler */
-void HandleTCPClient(int clientSock);           /* TCP client handling function */
-int SetupTCPServerSocket(unsigned short port); /* Create TCP server socket */
-int AcceptTCPConnection(int servSock);          /* Accept TCP connection request */
+void *thread_main(void *args); /* Main program of a thread */
+void handle_client(int clientSock);           /* TCP client handling function */
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        DieWithError("Parameter(s): <Timeout (secs.)> <Port/Service1> ...");
+    int servSock;
+    int clientSock;
+    unsigned short port;
+    pthread_t threadID;
+    struct thread_args *threadArgs;
+
+    /* Test for correct number of arguments */
+    if (argc != 2) {
+        fprintf(stderr,"Usage:  %s <SERVER PORT>\n", argv[0]);
+        exit(1);
     }
 
-    fd_set sockSet;               /* set of socket descriptors for select() */
-    long timeout = atol(argv[1]); /* argument 1: Timeout */
-    int noPorts = argc - 2;       /* argument 2: Number of ports */
-    int servSock[noPorts];        /* list of sockets for incoming connections */
-    int maxDescriptor = -1;       /* initialize maxDescriptor for select() */
-
-    struct timeval selTimeout; /* timeout for select() */
-
-    int port;
-
-    for (port = 0; port < noPorts; port++) {
-        servSock[port] = SetupTCPServerSocket(atoi(argv[port + 2]));
-
-        if (servSock[port] > maxDescriptor) {
-            maxDescriptor = servSock[port];
-        }
-    }
+    port = atoi(argv[1]); /* First argument: local port */
+    servSock = setup_server_socket(port);
 
     while (true) {
-        /* zero socket descriptor vector and set for server sockets */
-        /* must occur for every select() call */
-        FD_ZERO(&sockSet);
+        clientSock = accept_connection(servSock);
 
-        /* set timeout from command line arguments */
-        selTimeout.tv_sec = timeout;
-        selTimeout.tv_usec = 0;
-
-        for (port = 0; port < noPorts; port++) {
-            FD_SET(servSock[port], &sockSet);
+        if ((threadArgs = (struct thread_args *) malloc(sizeof(struct thread_args))) == NULL) {
+            die_with_error("pthread_create() failed");
         }
 
-        if (select(maxDescriptor + 1, &sockSet, NULL, NULL, &selTimeout) == 0) {
-            printf("No requests for %ld secs... Server still alive\n", timeout);
-        } else {
-            // process connection requests
-            for (port = 0; port < noPorts; port++) {
-                if (FD_ISSET(servSock[port], &sockSet)) {
-                    printf("Request on port %d: ", port);
-                    HandleTCPClient(AcceptTCPConnection(servSock[port]));
-                }
-            }
+        threadArgs->clientSock = clientSock;
+
+        if (pthread_create(&threadID, NULL, thread_main, (void *) threadArgs) != 0) {
+            die_with_error("pthread_create() failed");
         }
-    }
 
-    for (port = 0; port < noPorts; port++) {
-        close(servSock[port]);
+        printf("with thread %ld\n", (long int) threadID);
     }
-
-    exit(0);
 }
 
-int SetupTCPServerSocket(unsigned short port) {
-    int servSock;
-    struct sockaddr_in servAddr;      /* Local address */
+void *thread_main(void *threadArgs) {
+    int clientSock;
 
-    /* Construct local address structure*/
-    memset(&servAddr, 0, sizeof(servAddr));
-    servAddr.sin_family = AF_INET;
-    servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servAddr.sin_port = htons(port);
+    pthread_detach(pthread_self());
 
-    /* Bind to local address structure */
-    if (bind(servSock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
-        DieWithError("bind() failed");
-    }
+    clientSock = ((struct thread_args *) threadArgs)->clientSock;
+    free(threadArgs);
 
-    /* Listen for incoming connections */
-    if (listen(servSock, MAXPENDING) < 0) {
-        DieWithError("listen() failed");
-    }
+    handle_client(clientSock);
 
-    return servSock;
+    return (NULL);
 }
 
-int AcceptTCPConnection(int servSock) {
-    struct sockaddr_storage clientAddr; // Client address
-    socklen_t clientAddrLen = sizeof(clientAddr);
+void handle_client(int clientSock) {
+    char *message = get_request(clientSock);
 
-    /* wait for a client to connect */
-    int clientSock = accept(servSock, (struct sockaddr *) &clientAddr, &clientAddrLen);
-    if (clientSock < 0) {
-        DieWithError("accept() failed");
-    }
-
-    return clientSock;
-}
-
-void HandleTCPClient(int clientSock) {
-    char buffer[RCVBUFSIZE]; // Buffer for echo string
-    ssize_t numBytesRcvd = recv(clientSock, buffer, RCVBUFSIZE, 0);
-
-    if (numBytesRcvd < 0) {
-        DieWithError("recv() failed");
-    }
-
-    while (numBytesRcvd > 0) {
-        /* FIXME: parse data from client here */
-
-        // see if there is more data to receive
-        numBytesRcvd = recv(clientSock, buffer, RCVBUFSIZE, 0);
-        if (numBytesRcvd < 0) {
-            DieWithError("recv() failed");
-        }
-    }
+    printf("Received Request: %s", message);
+    
 
     close(clientSock);
-}
-
-void DieWithError(char *message) {
-    perror(message);
-    exit(1);
 }
