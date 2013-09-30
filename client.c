@@ -37,6 +37,11 @@ int main(int argc, char *argv[]){
 	size_t msgLength;
 	ssize_t numBytes;
 	unsigned int totalBytesRcvd;
+
+    if (argc != 3) {
+        fprintf(stderr,"Usage: %s <SERVER HOST> <SERVER PORT>\n", argv[0]);
+        exit(1);
+    }
 	
 	/* zero out all buffers */
 	memset(&sndBuf, 0, SEND_BUFFER_SIZE);
@@ -51,8 +56,8 @@ int main(int argc, char *argv[]){
 	/* Construct the server address structure */
 	memset(&serv_addr, 0, sizeof(serv_addr));	// zero out the structure
 	serv_addr.sin_family = AF_INET;				// IPv4 address family
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	serv_addr.sin_port = htons(4356);
+	serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
+	serv_addr.sin_port = htons(atoi(argv[2]));
 	
 	/* Connect to the server */
 	if (connect(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
@@ -62,7 +67,6 @@ int main(int argc, char *argv[]){
 	printf("Welcome to GTmyMusic.\n");
 
 	while (true) {
-
 		scanf("%s", input);
 		printf("Sending %s request...\n", input);
 
