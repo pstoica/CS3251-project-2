@@ -77,15 +77,23 @@ void handle_client(int clientSock) {
         char *message = get_request(clientSock);
 
         printf("Received Request: %s", message);
-
+		fflush(stdout);
+		
         // parse commands
         if (strcmp(message, "LIST")) {
-
+        
+			char sndBuf[SEND_BUFFER_SIZE];
+			memset(&sndBuf, 0, SEND_BUFFER_SIZE);
+			strcpy(sndBuf, "received list request");
+			ssize_t numBytes = send(clientSock, sndBuf, strlen(sndBuf), 0);
+			if(numBytes < 0)
+				die_with_error("send() failed");
+				
         } else if (strcmp(message, "DIFF")) {
 
-        } else if (strcmp(command, "PULL")) {
+        } else if (strcmp(message, "PULL")) {
 
-        } else if (strcmp(command, "LEAVE")) {
+        } else if (strcmp(message, "LEAVE")) {
             close(clientSock);
             break;
         } else {
