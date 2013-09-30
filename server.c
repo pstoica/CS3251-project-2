@@ -88,6 +88,8 @@ void handle_client(int clientSock) {
         } else if (strcmp(command, "LEAVE")) {
             close(clientSock);
             break;
+        } else {
+        	// send back help or invalid command notification msg
         }
     }
 }
