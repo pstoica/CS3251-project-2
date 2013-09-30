@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
 
     port = atoi(argv[1]); /* First argument: local port */
     servSock = setup_server_socket(port);
+    printf("GTmyMusic server started.\n");
 
     while (true) {
         clientSock = accept_connection(servSock);
@@ -72,31 +73,31 @@ void *thread_main(void *threadArgs) {
 }
 
 void handle_client(int clientSock) {
-    // can we accept() once and keep the connection open?
-    while(true) {
+    // FIXME: log signin
+    printf("User signed in.\n");
+
+    while (true) {
         char *message = get_request(clientSock);
 
         printf("Received Request: %s", message);
-		fflush(stdout);
-		
+
         // parse commands
-        if (strcmp(message, "LIST")) {
-        
-			char sndBuf[SEND_BUFFER_SIZE];
-			memset(&sndBuf, 0, SEND_BUFFER_SIZE);
-			strcpy(sndBuf, "received list request");
-			ssize_t numBytes = send(clientSock, sndBuf, strlen(sndBuf), 0);
-			if(numBytes < 0)
-				die_with_error("send() failed");
-				
-        } else if (strcmp(message, "DIFF")) {
+        if (strcmp(message, "LIST\r\n") == 0) {
+            send_message("Received LIST Request\r\n", clientSock);
+        } else if (strcmp(message, "DIFF\r\n") == 0) {
+            send_message("Received DIFF Request\r\n", clientSock);
+        } else if (strcmp(message, "PULL\r\n") == 0) {
+            send_message("Received PULL Request\r\n", clientSock);
+        } else if (strcmp(message, "LEAVE\r\n") == 0) {
+            send_message("Bye!\r\n", clientSock);
 
-        } else if (strcmp(message, "PULL")) {
+            // FIXME: log signout
+            printf("User signed out.\n");
 
-        } else if (strcmp(message, "LEAVE")) {
             close(clientSock);
             break;
         } else {
+            send_message("Invalid request.\n", clientSock);
         	// send back help or invalid command notification msg
         }
     }

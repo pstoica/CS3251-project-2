@@ -11,7 +11,10 @@ char *get_request(int clientSock) {
     assert(message);
 
     do {
+        printf("Receiving...\n");
         received_size = recv(clientSock, buffer, RECEIVE_BUFFER_SIZE, 0);
+        printf("Message length: %d\n", received_size);
+
         if (received_size < 0) {
             free(message);
             return 0;
@@ -19,19 +22,22 @@ char *get_request(int clientSock) {
             int i = 0;
 
             for (i = 0; i < received_size; i++) {
-                message[++message_size] = buffer[i];
+                message[message_size + i] = buffer[i];
 
                 /* if our message size is about to go over our capacity,
                    increase the string size and reallocate */
                 if (message_size >= capacity) {
+                    printf("regrowing message\n");
                     capacity += RECEIVE_BUFFER_SIZE;
                     message = realloc(message, capacity);
                 }
             }
 
+            message_size += received_size;
+
             memset(buffer, 0, RECEIVE_BUFFER_SIZE);
         }
-    } while (!is_valid(message) && received_size > 0);
+    } while (!is_valid(message));
 
     return message;
 }
@@ -39,8 +45,8 @@ char *get_request(int clientSock) {
 int is_valid(char *message) {
     int length = strlen(message);
 
-    if (length < 1) return false;
-    return (message[length - 1] == '\n');
+    if (length < 2) return false;
+    return ((message[length - 2] == '\r') && (message[length - 1] == '\n'));
 }
 
 int setup_server_socket(unsigned short port) {
@@ -68,6 +74,19 @@ int setup_server_socket(unsigned short port) {
     }
 
     return servSock;
+}
+
+int send_message(char *message, int sock) {
+    int bytes_sent = 0;
+    int message_length = strlen(message);
+    
+    bytes_sent = send(sock, message, message_length, 0);
+
+    if (bytes_sent < 0) {
+        die_with_error("send() failed");
+    } else if (bytes_sent != message_length) {
+        die_with_error("send() - sent unexpected number of bytes\n");
+    }
 }
 
 int accept_connection(int servSock) {
