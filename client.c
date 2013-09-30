@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
 	/* zero out all buffers */
 	memset(&sndBuf, 0, SEND_BUFFER_SIZE);
 	memset(&rcvBuf, 0, RECEIVE_BUFFER_SIZE);
-	memset(input, 0, INP_BUFFER_MAX);
+	memset(input, 0, INPUT_BUFFER_MAX);
 	
 	/* Create a new TCP socket */
 	int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -52,12 +52,12 @@ int main(int argc, char *argv[]){
 	/* Construct the server address structure */
 	memset(&serv_addr, 0, sizeof(serv_addr));	// zero out the structure
 	serv_addr.sin_family = AF_INET;				// IPv4 address family
-	serv_addr.sin_addr.s_addr = inet_addr("<ip addr of server>");
-	serv_addr.sin_port = htons(8254);
+	serv_addr.sin_addr.s_addr = inet_addr("130.207.114.21");
+	serv_addr.sin_port = htons(4356);
 	
 	/* Connect to the server */
 	if(connect(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-		die_with_error("connect() failed\n");	
+		die_with_error("connect() failed");	
 	
 	while(true){
 		//print welcome message (get from server probably)
@@ -65,15 +65,15 @@ int main(int argc, char *argv[]){
 		
 		/* wait for input from the client user */
 		scanf("%s", input);
-		for(i = 0; input[i] != '\0'; i++) input[i] = toupper(input[i]);
+		//for(i = 0; input[i] != '\0' && i < strlen(input); i++) input[i] = toupper(input[i]);
 		
 		/* if any command besides DIFF or LEAVE, just send the cmd */
-		if(strcmp(input, "DIFF") != 0){
-			strcpy(sndBud, input);
+		if(strcmp(input, "DIFF")){
+			strcpy(sndBuf, input);
 			msgLength = strlen(sndBuf);
 			numBytes = send(sock, sndBuf, msgLength, 0);
 			if(numBytes < 0)
-				die_with_error("send() failed\n");
+				die_with_error("send() failed");
 			else if(numBytes != msgLength)
 				die_with_error("send() - sent unexpected # of bytes\n");
 				
@@ -88,14 +88,14 @@ int main(int argc, char *argv[]){
 		/* Receive response until entire response received */
 		totalBytesRcvd = 0;
 		printf("Response from server: ");
-		do {
+		 while(numBytes > 0){
 			numBytes = recv(sock, rcvBuf, RECEIVE_BUFFER_SIZE, 0);
 			if(numBytes < 0)
-				die_with_error("recv() failed\n");
+				die_with_error("recv() failed");
 			printf("%s", rcvBuf);
 			fflush(stdout);		
 			totalBytesRcvd+= numBytes;
-		} while(numBytes > 0);
+		}
 		printf("\n");
 	}
 	
