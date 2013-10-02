@@ -70,7 +70,6 @@ void handle_client(int clientSock) {
 
     while (true) {
         char *message = get_request(clientSock);
-
         printf("Received Request: %s", message);
 
         // parse commands

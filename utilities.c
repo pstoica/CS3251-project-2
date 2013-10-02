@@ -106,3 +106,62 @@ void die_with_error(char *message) {
     perror(message);
     exit(1);
 }
+
+unsigned checksum(void *buffer, size_t len, unsigned int seed){
+	unsigned char *buf = (unsigned char *)buffer;
+	size_t i;
+	for(i = 0; i < len; i++){
+		seed += (unsigned int)(*buf++);
+	}
+	return seed;
+}
+
+// All List functionality not working, but reads through and gets all regular files in current dir
+list* read_directory(){
+	// Create list
+	list *file_list = create_list();
+	
+	// Create directory handle
+	DIR *d;
+	struct dirent *dir;
+	
+	// File Handle
+	FILE *fp;
+	
+	// Length & char buffer used for checksum calculation
+	size_t len;
+	char buf[7*1024*1024];		// Reads the first ~7MB of a file
+								// Any bigger caused a seg fault on my VM
+								// May need to re-work a bit
+	
+	// Open directory
+	d = opendir(".");
+	if(d == NULL)
+		return NULL;
+	
+	if(d) {
+		while((dir = readdir(d)) != NULL) {
+			if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+				continue;
+			
+			// Only adds 'regular' files to linked list
+			if(dir->d_type == DT_REG){
+				char *file_name = dir->d_name;
+				
+				// Checksum works on mp3 file and returns an unsigned int
+				if((fp = fopen(file_name, "rb")) != NULL){
+					len = fread(buf, sizeof(char), sizeof(buf), fp);
+      				unsigned int file_checksum = checksum(buf, len, 0);
+				}
+				
+				//pushes file name into the list
+				push_back(file_list, file_name);
+			} 
+		}
+		// Close directory
+		closedir(d);
+	}
+
+	// Return list ptr to caller
+	return file_list;
+}

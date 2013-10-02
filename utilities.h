@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <dirent.h>
+#include "list.h"
 
 #pragma once
 
@@ -14,9 +16,11 @@
 
 char *get_request(int sock);
 int is_valid(char *message);
-void die_with_error(char *errorMessage);          /* Error handler */
-int setup_server_socket(unsigned short port);  /* Create TCP server socket */
-int accept_connection(int servSock);          /* Accept TCP connection request */
+void die_with_error(char *errorMessage);        /* Error handler */
+int setup_server_socket(unsigned short port);  	/* Create TCP server socket */
+int accept_connection(int servSock);          	/* Accept TCP connection request */
+unsigned checksum(void *buffer, size_t len, unsigned int seed);		/* Used for checksum calculation */
+list *read_directory();							/* Reads the file names in the given directory */
 
 struct thread_args {
     int clientSock;
