@@ -14,6 +14,7 @@
 
 #define MAXPENDING 5        /* Maximum outstanding connection requests */
 
+list *file_list;
 void *thread_main(void *args); /* Main program of a thread */
 void handle_client(int clientSock);           /* TCP client handling function */
 
@@ -23,6 +24,8 @@ int main(int argc, char *argv[]) {
     unsigned short port;
     pthread_t threadID;
     struct thread_args *threadArgs;
+
+    file_list = create_list();
 
     /* Test for correct number of arguments */
     if (argc != 2) {
@@ -75,6 +78,11 @@ void handle_client(int clientSock) {
         // parse commands
         if (strcmp(message, "LIST\r\n") == 0) {
             send_message("Received LIST Request\r\n", clientSock);
+            printf("merp\n");
+            read_directory(file_list);
+            printf("merp done\n");
+
+            traverse(file_list, print_files);
         } else if (strcmp(message, "DIFF\r\n") == 0) {
             send_message("Received DIFF Request\r\n", clientSock);
         } else if (strcmp(message, "PULL\r\n") == 0) {
