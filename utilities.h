@@ -28,6 +28,7 @@ struct thread_args {
     int clientSock;
 };
 
+/* stores filename and checksum */
 typedef struct lfilenode {
   char *name;
   char *checksum;
