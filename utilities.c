@@ -107,15 +107,6 @@ void die_with_error(char *message) {
     exit(1);
 }
 
-unsigned checksum(void *buffer, size_t len, unsigned int seed){
-	unsigned char *buf = (unsigned char *)buffer;
-	size_t i;
-	for(i = 0; i < len; i++){
-		seed += (unsigned int)(*buf++);
-	}
-	return seed;
-}
-
 // All List functionality not working, but reads through and gets all regular files in current dir
 void read_directory(list *file_list){
 	// Create directory handle
@@ -124,10 +115,6 @@ void read_directory(list *file_list){
 	
 	// File Handle
 	FILE *fp;
-	
-	// Length & char buffer used for checksum calculation
-	size_t len;
-	char buf[512];		// 512 works.. it's a buffer, so it should be small
 
 	// Open directory
 	d = opendir(".");
@@ -152,13 +139,9 @@ void read_directory(list *file_list){
 				
 				// Checksum works on mp3 file and returns an unsigned int
 				if((fp = fopen(file_name, "rb")) != NULL){
-					len = fread(buf, sizeof(char), sizeof(buf), fp);
-      				unsigned int file_checksum = checksum(buf, len, 0);
-                    char *checksum;
+                    file->checksum = checksum(fp);
 
-                    sprintf(checksum, "%d", file_checksum);
-
-                    file->checksum = checksum;
+                    fclose(fp);
 				}
 				
 				//pushes file name into the list
@@ -169,6 +152,28 @@ void read_directory(list *file_list){
 		// Close directory
 		closedir(d);
 	}
+}
+
+static char *checksum(FILE *inFile) {
+    MD5_CTX mdContext;
+    unsigned char digest[16];
+    char *checksum = (char*)malloc(33);
+    int n;
+    int bytes;
+    unsigned char data[1024];
+
+    MD5_Init(&mdContext);
+    while ((bytes = fread (data, 1, 1024, inFile)) != 0) {
+        MD5_Update(&mdContext, data, bytes);
+    }
+
+    MD5_Final(digest, &mdContext);
+
+    for (n = 0; n < 16; ++n) {
+        snprintf(&(checksum[n*2]), 16*2, "%02x", (unsigned int)digest[n]);
+    }
+
+    return checksum;
 }
 
 void print_files(void *data) {

@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <openssl/md5.h>
 #include "list.h"
 
 #pragma once
@@ -19,9 +20,9 @@ int is_valid(char *message);
 void die_with_error(char *errorMessage);        /* Error handler */
 int setup_server_socket(unsigned short port);  	/* Create TCP server socket */
 int accept_connection(int servSock);          	/* Accept TCP connection request */
-unsigned checksum(void *buffer, size_t len, unsigned int seed);		/* Used for checksum calculation */
 void read_directory(list *file_list);							/* Reads the file names in the given directory */
 void print_files(void *data);                   /* Prints file data */
+static char *checksum(FILE *inFile);                   /* Calculates md5 checksum for given filepointer */
 
 struct thread_args {
     int clientSock;
