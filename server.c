@@ -78,11 +78,11 @@ void handle_client(int clientSock) {
         // parse commands
         if (strcmp(message, "LIST\r\n") == 0) {
             send_message("Received LIST Request\r\n", clientSock);
-            printf("merp\n");
             read_directory(file_list);
-            printf("merp done\n");
-
-            traverse(file_list, print_files);
+            printf("Files is directoty read and List created\n");
+            // Goes through the list and sends the filename and checksum to client
+            build_and_send_list(file_list, clientSock);
+            
         } else if (strcmp(message, "DIFF\r\n") == 0) {
             send_message("Received DIFF Request\r\n", clientSock);
         } else if (strcmp(message, "PULL\r\n") == 0) {

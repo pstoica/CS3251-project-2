@@ -62,8 +62,10 @@ int main(int argc, char *argv[]){
 
 		if (strcmp(input, "DIFF") == 0) {
 			send_message("DIFF\r\n", sock);
+			//run LIST logic and send to server
 		} else if (strcmp(input, "LIST") == 0) {
 			send_message("LIST\r\n", sock);
+			//receive data until some EOD flag received
 		} else if (strcmp(input, "PULL") == 0) {
 			send_message("PULL\r\n", sock);
 		} else if (strcmp(input, "LEAVE") == 0) {
@@ -71,8 +73,15 @@ int main(int argc, char *argv[]){
 			exit(0);
 		}
 		
-        char *message = get_request(sock);
-        printf("Received: %s", message);
+		if (strcmp(input, "LIST")){
+		    char *message = get_request(sock);
+		    printf("Received: %s", message);
+		} else {
+			char *message = get_request(sock);
+			printf("%s\n", message);
+			message = get_request(sock);
+			printf("%s\n", message);
+		}
 	}
 	
 	close(sock);

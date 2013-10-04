@@ -140,7 +140,6 @@ void read_directory(list *file_list){
 				// Checksum works on mp3 file and returns an unsigned int
 				if((fp = fopen(file_name, "rb")) != NULL){
                     file->checksum = checksum(fp);
-
                     fclose(fp);
 				}
 				
@@ -178,5 +177,19 @@ static char *checksum(FILE *inFile) {
 
 void print_files(void *data) {
     filenode *file = (filenode *) data;
-    printf("%s\n%s\n", file->name, file->checksum);
+    //printf("%s\n%s\n", file->name, file->checksum);
+}
+
+void build_and_send_list(list *file_list, int clnt_sock){
+	filenode *current = front(file_list);
+	
+	while(!is_empty(file_list)) {
+		char *snd_buf;
+		asprintf(&snd_buf, "%s\t%s\n", current->name, current->checksum);
+		send_message(snd_buf, clnt_sock);
+		free(snd_buf);
+		remove_front(file_list, print_files);
+		current = front(file_list);
+	}
+	send_message("End Of LIST\r\n", clnt_sock);
 }

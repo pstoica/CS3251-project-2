@@ -18,10 +18,10 @@ ifeq ($(OS), SunOS)
 all: client server 
 
 client: client.o list.o utilities.o
-	$(CC) -lcrypto -o GTmyMusic client.o list.o utilities.o
+	$(CC) -o GTmyMusic client.o list.o utilities.o -lssl -lcrypto
 
 server: server.o utilities.o
-	$(CC) -pthread -lcrypto -o GTmyMusicServer server.o list.o utilities.o
+	$(CC) -o GTmyMusicServer server.o list.o utilities.o -lssl -pthread -lcrypto
 
 %.o : %.c %.h
 	$(CC) $(CFLAGS) -c -o $@ $<
