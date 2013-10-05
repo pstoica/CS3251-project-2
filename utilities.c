@@ -6,6 +6,7 @@ char *get_request(int clientSock) {
     int received_size = 0;
     int message_size = 0;
     int capacity = RECEIVE_BUFFER_SIZE;
+    int i;
 
     char *message = calloc(1, sizeof(char) * RECEIVE_BUFFER_SIZE);
     assert(message);
@@ -19,21 +20,13 @@ char *get_request(int clientSock) {
             free(message);
             return 0;
         } else if (received_size > 0) {
-            int i = 0;
-
             for (i = 0; i < received_size; i++) {
                 message[message_size + i] = buffer[i];
-
-                /* if our message size is about to go over our capacity,
-                   increase the string size and reallocate */
-                if (message_size >= capacity) {
-                    printf("regrowing message\n");
-                    capacity += RECEIVE_BUFFER_SIZE;
-                    message = realloc(message, capacity);
-                }
             }
 
             message_size += received_size;
+            capacity += RECEIVE_BUFFER_SIZE;
+            message = realloc(message, capacity);
 
             memset(buffer, 0, RECEIVE_BUFFER_SIZE);
         }
@@ -45,8 +38,9 @@ char *get_request(int clientSock) {
 int is_valid(char *message) {
     int length = strlen(message);
 
-    if (length < 2) return false;
-    return ((message[length - 2] == '\r') && (message[length - 1] == '\n'));
+    // matches \r\n or EOT
+    return ((message[length - 2] == 13 && message[length - 1] == 10) ||
+        (message[length - 1] == 4));
 }
 
 int setup_server_socket(unsigned short port) {
@@ -180,16 +174,54 @@ void print_files(void *data) {
     //printf("%s\n%s\n", file->name, file->checksum);
 }
 
+void free_file(void *data) {
+    /*filenode *file = (filenode *) data;
+    free(file->name);
+    free(file->checksum);*/
+}
+
 void build_and_send_list(list *file_list, int clnt_sock){
 	filenode *current = front(file_list);
+    char *buffer;
+    int buffer_size = 0;
+    int message_size = 0;
+    int capacity = RECEIVE_BUFFER_SIZE;
+    int i;
+
+    char *message = calloc(1, sizeof(char) * RECEIVE_BUFFER_SIZE);
+    assert(message);
+
 	
 	while(!is_empty(file_list)) {
-		char *snd_buf;
-		asprintf(&snd_buf, "%s\t%s\n", current->name, current->checksum);
-		send_message(snd_buf, clnt_sock);
-		free(snd_buf);
-		remove_front(file_list, print_files);
-		current = front(file_list);
+        remove_front(file_list, free_file);
+
+        if (is_empty(file_list)) {
+            // end, add return carriage
+            printf("final line\n");
+            buffer_size = asprintf(&buffer, "%s\n%s\r\n", current->name, current->checksum);
+        } else {
+            buffer_size = asprintf(&buffer, "%s\n%s\n", current->name, current->checksum);
+        }
+
+        current = front(file_list);
+
+        for (i = 0; i < buffer_size; i++) {
+            message[message_size + i] = buffer[i];
+
+            /* if our message size is about to go over our capacity,
+               increase the string size and reallocate */
+            if ((message_size + i) >= capacity) {
+                printf("regrowing message\n");
+                capacity += RECEIVE_BUFFER_SIZE;
+                message = realloc(message, capacity);
+            }
+        }
+
+        message_size += buffer_size;
+        free(buffer);
 	}
-	send_message("End Of LIST\r\n", clnt_sock);
+
+    //asprintf(&buffer, "EOM\r\n");
+    send_message(message, clnt_sock);
+    free(message);
 }

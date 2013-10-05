@@ -73,8 +73,9 @@ int main(int argc, char *argv[]){
 			exit(0);
 		}
 		
-		if (strcmp(input, "LIST")){
+		if (strcmp(input, "LIST") == 0){
 		    char *message = get_request(sock);
+		    //printf("Done.\n");
 		    printf("Received: %s", message);
 		} else {
 			char *message = get_request(sock);
