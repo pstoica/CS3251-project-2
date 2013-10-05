@@ -472,3 +472,27 @@ void traverse(list* llist, list_op do_func) {
 		}
 	}
 }
+
+/** traverse
+  *
+  * Traverses the linked list calling a function on each node's data.
+  *
+  * @param llist a pointer to a linked list.
+  * @param do_func a function that does something to each node's data.
+  */
+void traverse_diff(list *llist, list *client_list, list *output, equal_op compare_func) {
+	if (!is_empty(llist)) {
+		node *next = llist->head;
+		node *current;
+		int i = 0;
+		int size = llist->size; // just in case do_func does something bad
+		while (i < size) {
+			current = next;
+			next = current->next;
+			if (!find_occurrence(client_list, current->data, compare_func)) {
+                push_back(output, current->data);
+            }
+			i++;
+		}
+	}
+}

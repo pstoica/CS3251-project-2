@@ -209,12 +209,15 @@ void build_and_send_list(list *file_list, int clnt_sock){
     int buffer_size = 0;
     int i;
 
+    if (is_empty(file_list)) {
+        send_message("\r\n", clnt_sock);
+    }
+
 	while(!is_empty(file_list)) {
         remove_front(file_list, free_file);
 
         if (is_empty(file_list)) {
             // end, add return carriage
-            //printf("final line\n");
             buffer_size = asprintf(&buffer, "%s\n%s\r\n", current->name, current->checksum);
         } else {
             buffer_size = asprintf(&buffer, "%s\n%s\n", current->name, current->checksum);
@@ -225,6 +228,17 @@ void build_and_send_list(list *file_list, int clnt_sock){
 
         current = front(file_list);
 	}
+}
+
+int file_comparator(const void *data1, const void *data2) {
+    int result;
+    filenode *file1 = (filenode *) data1;
+    filenode *file2 = (filenode *) data2;
+
+    result = ((strcmp(file1->name, file2->name) == 0) &&
+              (strcmp(file1->checksum, file2->checksum) == 0));
+
+    return result;
 }
 
 void print_files(void *data) {

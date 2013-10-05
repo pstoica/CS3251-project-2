@@ -84,11 +84,15 @@ int main(int argc, char *argv[]){
 
 		char *message = get_request(sock);
 		
-		if (strcmp(input, "LIST") == 0){
+		if (strcmp(input, "LIST") == 0 || strcmp(input, "DIFF") == 0){
 		    empty_list(server_list, free_file);
 		    deserialize(server_list, message);
 
-			traverse(server_list, print_filenames);
+		    if (server_list->size == 0) {
+		    	printf("No files found.\n");
+		    } else {
+				traverse(server_list, print_filenames);
+		    }
 		} else {
 			printf("%s\n", message);
 		}

@@ -70,6 +70,7 @@ void *thread_main(void *threadArgs) {
 void handle_client(int clientSock) {
     // FIXME: log signin
     list *client_list = create_list();
+    list *diff_list = create_list();
     printf("User signed in.\n");
 
     while (true) {
@@ -80,6 +81,7 @@ void handle_client(int clientSock) {
 
         // parse commands
         if (strcmp(message, "LIST") == 0) {
+            empty_list(client_list, free_file);
             read_directory(client_list);
             // Goes through the list and sends the filename and checksum to client
             build_and_send_list(client_list, clientSock);
@@ -89,8 +91,13 @@ void handle_client(int clientSock) {
             empty_list(client_list, free_file);
             deserialize(client_list, message);
 
-            traverse(client_list, print_filenames);
-            send_message("Received DIFF Request\r\n", clientSock);
+            empty_list(file_list, free_file);
+            read_directory(file_list);
+
+            empty_list(diff_list, free_file);
+            traverse_diff(file_list, client_list, diff_list, file_comparator);
+
+            build_and_send_list(diff_list, clientSock);
         } else if (strcmp(message, "PULL") == 0) {
             send_message("Received PULL Request\r\n", clientSock);
         } else if (strcmp(message, "LEAVE") == 0) {

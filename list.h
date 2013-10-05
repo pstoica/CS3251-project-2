@@ -69,6 +69,7 @@ void empty_list(list* llist, list_op free_func);
 
 /* Traversal */
 void traverse(list* llist, list_op do_func);
+void traverse_diff(list *llist, list *client_list, list *output, equal_op compare_func);
 
 /* Debugging Support */
 #ifdef DEBUG

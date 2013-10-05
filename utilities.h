@@ -29,6 +29,7 @@ void free_file(void *data);
 static char *checksum(FILE *inFile);            			/* Calculates md5 checksum for given filepointer */
 void build_and_send_list(list *file_list, int clnt_sock);	/* */
 void deserialize(list *file_list, char *message);
+int file_comparator(const void *data1, const void *data2);
 
 struct thread_args {
     int clientSock;
