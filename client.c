@@ -68,7 +68,10 @@ int main(int argc, char *argv[]){
 
 		if (strcmp(input, "DIFF") == 0) {
 			send_message("DIFF\r\n", sock);
-			//run LIST logic and send to server
+
+			empty_list(local_list, free_file);
+			read_directory(local_list);
+			build_and_send_list(local_list, sock);
 		} else if (strcmp(input, "LIST") == 0) {
 			send_message("LIST\r\n", sock);
 			//receive data until some EOD flag received

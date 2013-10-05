@@ -69,22 +69,31 @@ void *thread_main(void *threadArgs) {
 
 void handle_client(int clientSock) {
     // FIXME: log signin
+    list *client_list = create_list();
     printf("User signed in.\n");
 
     while (true) {
+        char *request;
         char *message = get_request(clientSock);
-        printf("Received Request: %s", message);
+        request = strtok(message, "\r\n");
+        printf("Received Request: %s\n", request);
 
         // parse commands
-        if (strcmp(message, "LIST\r\n") == 0) {
-            read_directory(file_list);
+        if (strcmp(message, "LIST") == 0) {
+            read_directory(client_list);
             // Goes through the list and sends the filename and checksum to client
-            build_and_send_list(file_list, clientSock);
-        } else if (strcmp(message, "DIFF\r\n") == 0) {
+            build_and_send_list(client_list, clientSock);
+        } else if (strcmp(message, "DIFF") == 0) {
+            message = get_request(clientSock);
+
+            empty_list(client_list, free_file);
+            deserialize(client_list, message);
+
+            traverse(client_list, print_filenames);
             send_message("Received DIFF Request\r\n", clientSock);
-        } else if (strcmp(message, "PULL\r\n") == 0) {
+        } else if (strcmp(message, "PULL") == 0) {
             send_message("Received PULL Request\r\n", clientSock);
-        } else if (strcmp(message, "LEAVE\r\n") == 0) {
+        } else if (strcmp(message, "LEAVE") == 0) {
             send_message("Bye!\r\n", clientSock);
 
             // FIXME: log signout
