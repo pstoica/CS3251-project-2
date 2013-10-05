@@ -80,7 +80,6 @@ void handle_client(int clientSock) {
             read_directory(file_list);
             // Goes through the list and sends the filename and checksum to client
             build_and_send_list(file_list, clientSock);
-            printf("Files is directoty read and List created\n");
         } else if (strcmp(message, "DIFF\r\n") == 0) {
             send_message("Received DIFF Request\r\n", clientSock);
         } else if (strcmp(message, "PULL\r\n") == 0) {

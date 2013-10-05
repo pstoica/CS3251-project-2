@@ -114,14 +114,14 @@ void read_directory(list *file_list){
 	// Open directory
 	d = opendir(".");
 
-    printf("opendir\n");
+    //printf("opendir\n");
 	if(d == NULL)
 		return;
 	
 	if(d) {
-        printf("found d\n");
+        //printf("found d\n");
 		while((dir = readdir(d)) != NULL) {
-            printf("file found\n");
+            //printf("file found\n");
 			if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
 				continue;
 			
@@ -140,7 +140,7 @@ void read_directory(list *file_list){
 				
 				//pushes file name into the list
 				push_back(file_list, file);
-                printf("added file %s\n", file_name);
+                //printf("added file %s\n", file_name);
 			} 
 		}
 		// Close directory
@@ -192,7 +192,7 @@ void build_and_send_list(list *file_list, int clnt_sock){
 
         if (is_empty(file_list)) {
             // end, add return carriage
-            printf("final line\n");
+            //printf("final line\n");
             buffer_size = asprintf(&buffer, "%s\n%s\r\n", current->name, current->checksum);
         } else {
             buffer_size = asprintf(&buffer, "%s\n%s\n", current->name, current->checksum);
