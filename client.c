@@ -58,7 +58,6 @@ int main(int argc, char *argv[]){
 
 	while (true) {
 		scanf("%s", input);
-		printf("Sending %s request...\n", input);
 
 		if (strcmp(input, "DIFF") == 0) {
 			send_message("DIFF\r\n", sock);
@@ -76,7 +75,7 @@ int main(int argc, char *argv[]){
 		if (strcmp(input, "LIST") == 0){
 		    char *message = get_request(sock);
 		    //printf("Done.\n");
-		    printf("Received: %s", message);
+		    printf("Received:\n%s", message);
 		} else {
 			char *message = get_request(sock);
 			printf("%s\n", message);

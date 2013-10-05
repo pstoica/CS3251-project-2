@@ -12,9 +12,9 @@ char *get_request(int clientSock) {
     assert(message);
 
     do {
-        printf("Receiving...\n");
+        //printf("Receiving...\n");
         received_size = recv(clientSock, buffer, RECEIVE_BUFFER_SIZE, 0);
-        printf("Message length: %d\n", received_size);
+        //printf("Message length: %d\n", received_size);
 
         if (received_size < 0) {
             free(message);
@@ -30,6 +30,8 @@ char *get_request(int clientSock) {
 
             memset(buffer, 0, RECEIVE_BUFFER_SIZE);
         }
+
+        //printf("%s\n", message);
     } while (!is_valid(message));
 
     return message;
@@ -38,9 +40,8 @@ char *get_request(int clientSock) {
 int is_valid(char *message) {
     int length = strlen(message);
 
-    // matches \r\n or EOT
-    return ((message[length - 2] == 13 && message[length - 1] == 10) ||
-        (message[length - 1] == 4));
+    // matches \r\n
+    return (message[length - 2] == 13 && message[length - 1] == 10);
 }
 
 int setup_server_socket(unsigned short port) {
@@ -184,14 +185,8 @@ void build_and_send_list(list *file_list, int clnt_sock){
 	filenode *current = front(file_list);
     char *buffer;
     int buffer_size = 0;
-    int message_size = 0;
-    int capacity = RECEIVE_BUFFER_SIZE;
     int i;
 
-    char *message = calloc(1, sizeof(char) * RECEIVE_BUFFER_SIZE);
-    assert(message);
-
-	
 	while(!is_empty(file_list)) {
         remove_front(file_list, free_file);
 
@@ -203,25 +198,9 @@ void build_and_send_list(list *file_list, int clnt_sock){
             buffer_size = asprintf(&buffer, "%s\n%s\n", current->name, current->checksum);
         }
 
-        current = front(file_list);
-
-        for (i = 0; i < buffer_size; i++) {
-            message[message_size + i] = buffer[i];
-
-            /* if our message size is about to go over our capacity,
-               increase the string size and reallocate */
-            if ((message_size + i) >= capacity) {
-                printf("regrowing message\n");
-                capacity += RECEIVE_BUFFER_SIZE;
-                message = realloc(message, capacity);
-            }
-        }
-
-        message_size += buffer_size;
+        send_message(buffer, clnt_sock);
         free(buffer);
-	}
 
-    //asprintf(&buffer, "EOM\r\n");
-    send_message(message, clnt_sock);
-    free(message);
+        current = front(file_list);
+	}
 }
