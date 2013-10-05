@@ -12,6 +12,9 @@
 #include "client.h"
 #include "utilities.h"
 
+list *local_list;
+list *server_list;
+
 /*
  *	Thoughts
  *		Consider taking in dir to music home when started
@@ -32,6 +35,10 @@ int main(int argc, char *argv[]){
         fprintf(stderr,"Usage: %s <SERVER HOST> <SERVER PORT>\n", argv[0]);
         exit(1);
     }
+
+    /* initialize linked lists */
+    local_list = create_list();
+    server_list = create_list();
 	
 	/* zero out all buffers */
 	memset(&sndBuf, 0, SEND_BUFFER_SIZE);
@@ -71,17 +78,19 @@ int main(int argc, char *argv[]){
 			send_message("LEAVE\r\n", sock);
 			exit(0);
 		}
+
+		char *message = get_request(sock);
 		
 		if (strcmp(input, "LIST") == 0){
-		    char *message = get_request(sock);
-		    //printf("Done.\n");
-		    printf("Received:\n%s", message);
+		    empty_list(server_list, free_file);
+		    deserialize(server_list, message);
+
+			traverse(server_list, print_filenames);
 		} else {
-			char *message = get_request(sock);
-			printf("%s\n", message);
-			message = get_request(sock);
 			printf("%s\n", message);
 		}
+
+		free(message);
 	}
 	
 	close(sock);

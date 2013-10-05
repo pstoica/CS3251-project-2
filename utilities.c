@@ -170,15 +170,37 @@ static char *checksum(FILE *inFile) {
     return checksum;
 }
 
-void print_files(void *data) {
-    filenode *file = (filenode *) data;
-    //printf("%s\n%s\n", file->name, file->checksum);
-}
+void deserialize(list *file_list, char *message) {
+    int count = 0;
+    char *file_name;
+    char *checksum;
+    char *token;
 
-void free_file(void *data) {
-    /*filenode *file = (filenode *) data;
-    free(file->name);
-    free(file->checksum);*/
+    token = strtok(message, "\r\n");
+    count++;
+
+    while (token != NULL) {   
+        //printf("found token: %s\n", token);
+
+        if (count == 1) {
+            file_name = token;
+        } else if (count == 2) {
+            checksum = token;
+        }
+
+        if (count == 2) {
+            //printf("found file node\n");
+            filenode *file = malloc(sizeof(filenode));
+            file->name = file_name;
+            file->checksum = checksum;
+
+            push_back(file_list, file);
+            count = 0;
+        }
+
+        token = strtok(NULL, "\r\n");
+        count++;
+    }
 }
 
 void build_and_send_list(list *file_list, int clnt_sock){
@@ -204,3 +226,16 @@ void build_and_send_list(list *file_list, int clnt_sock){
         current = front(file_list);
 	}
 }
+
+void print_files(void *data) {
+    filenode *file = (filenode *) data;
+    printf("%s\n", file->name);
+    printf("%s\n", file->checksum);
+}
+
+void print_filenames(void *data) {
+    filenode *file = (filenode *) data;
+    printf("%s\n", file->name);
+}
+
+void free_file(void *data) { }
