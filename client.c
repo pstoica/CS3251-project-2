@@ -74,9 +74,13 @@ int main(int argc, char *argv[]){
 			build_and_send_list(local_list, sock);
 		} else if (strcmp(input, "LIST") == 0) {
 			send_message("LIST\r\n", sock);
-			//receive data until some EOD flag received
+			
 		} else if (strcmp(input, "PULL") == 0) {
 			send_message("PULL\r\n", sock);
+			
+			empty_list(local_list, free_file);
+			read_directory(local_list);
+			build_and_send_list(local_list, sock);
 		} else if (strcmp(input, "LEAVE") == 0) {
 			send_message("LEAVE\r\n", sock);
 			exit(0);
@@ -92,6 +96,16 @@ int main(int argc, char *argv[]){
 		    	printf("No files found.\n");
 		    } else {
 				traverse(server_list, print_filenames);
+		    }
+		} else if(strcmp(input, "PULL") == 0) {
+			empty_list(server_list, free_file);
+		    deserialize(server_list, message);
+
+		    if (server_list->size == 0) {
+		    	printf("No files pulled.\n");
+		    } else {
+		    	//receive the files???
+		    	printf("%i files need to be pulled.\n", server_list->size);
 		    }
 		} else {
 			printf("%s\n", message);

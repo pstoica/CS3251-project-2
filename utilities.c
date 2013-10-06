@@ -104,6 +104,7 @@ void die_with_error(char *message) {
 
 // All List functionality not working, but reads through and gets all regular files in current dir
 void read_directory(list *file_list){
+	struct stat stbuf;
 	// Create directory handle
 	DIR *d;
 	struct dirent *dir;
@@ -131,6 +132,11 @@ void read_directory(list *file_list){
 
                 filenode *file = malloc(sizeof(filenode));
                 file->name = file_name;
+                
+                if (stat(file->name, &stbuf) == -1) {
+					die_with_error("stat() failed");
+				}
+                file->size = (unsigned long int) stbuf.st_size;              
 				
 				// Checksum works on mp3 file and returns an unsigned int
 				if((fp = fopen(file_name, "rb")) != NULL){
@@ -140,7 +146,7 @@ void read_directory(list *file_list){
 				
 				//pushes file name into the list
 				push_back(file_list, file);
-                //printf("added file %s\n", file_name);
+                //printf("added file %s\n%s\n%lu\n", file_name, file->checksum, file->size);
 			} 
 		}
 		// Close directory
@@ -175,6 +181,7 @@ void deserialize(list *file_list, char *message) {
     char *file_name;
     char *checksum;
     char *token;
+    unsigned long size;
 
     token = strtok(message, "\r\n");
     count++;
@@ -186,13 +193,16 @@ void deserialize(list *file_list, char *message) {
             file_name = token;
         } else if (count == 2) {
             checksum = token;
+        } else if(count == 3){
+        	size = strtoul(token, NULL, 0);
         }
 
-        if (count == 2) {
+        if (count == 3) {
             //printf("found file node\n");
             filenode *file = malloc(sizeof(filenode));
             file->name = file_name;
             file->checksum = checksum;
+            file->size = (unsigned long int)size;
 
             push_back(file_list, file);
             count = 0;
@@ -218,9 +228,9 @@ void build_and_send_list(list *file_list, int clnt_sock){
 
         if (is_empty(file_list)) {
             // end, add return carriage
-            buffer_size = asprintf(&buffer, "%s\n%s\r\n", current->name, current->checksum);
+            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\r\n", current->name, current->checksum, current->size);
         } else {
-            buffer_size = asprintf(&buffer, "%s\n%s\n", current->name, current->checksum);
+            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, current->size);
         }
 
         send_message(buffer, clnt_sock);
@@ -229,6 +239,53 @@ void build_and_send_list(list *file_list, int clnt_sock){
         current = front(file_list);
 	}
 }
+
+/*void send_diff_files(list *file_list, list *send_list, int clnt_sock){
+	struct stat stbuf;
+	filenode *current = front(file_list);
+	char *buffer;
+    int buffer_size = 0;
+    int i;
+
+    if (is_empty(file_list)) {
+        send_message("\r\n", clnt_sock);
+    }
+    
+    // send DIFF list, but include file sizes so client knows how big each file it is receiving is
+    while(!is_empty(file_list)){
+    	filenode *temp = malloc(sizeof(filenode));
+    	if (stat(current->name, &stbuf) == -1) {
+    		die_with_error("stat() failed");
+    	}
+    	temp->name = current->name;
+    	temp->size = stbuf.st_size;
+    	temp->checksum = current->checksum;
+    	push_back(send_list, temp);
+    	
+    	remove_front(file_list, free_file);
+    	if (is_empty(file_list)) {
+            // end, add return carriage
+            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\r\n", current->name, current->checksum, temp->size);
+        } else {
+            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, temp->size);
+        }
+
+        send_message(buffer, clnt_sock);
+        free(buffer);
+
+        current = front(file_list);
+    }
+    
+    //now go through the temp list and send each file
+    current = front(send_list);
+    
+    while(!is_empty(send_list)){
+    	//send file in current 
+    	remove_front(send_list, free_file);
+    	current = front(send_list);
+    }
+	
+}*/
 
 int file_comparator(const void *data1, const void *data2) {
     int result;

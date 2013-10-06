@@ -71,6 +71,7 @@ void handle_client(int clientSock) {
     // FIXME: log signin
     list *client_list = create_list();
     list *diff_list = create_list();
+    list *temp_list = create_list();
     printf("User signed in.\n");
 
     while (true) {
@@ -99,7 +100,20 @@ void handle_client(int clientSock) {
 
             build_and_send_list(diff_list, clientSock);
         } else if (strcmp(message, "PULL") == 0) {
-            send_message("Received PULL Request\r\n", clientSock);
+            message = get_request(clientSock);
+
+            empty_list(client_list, free_file);
+            deserialize(client_list, message);
+
+            empty_list(file_list, free_file);
+            read_directory(file_list);
+
+            empty_list(diff_list, free_file);
+            traverse_diff(file_list, client_list, diff_list, file_comparator);
+            
+            empty_list(temp_list, free_file);
+			//send_diff_files(diff_list, temp_list, clientSock);
+            
         } else if (strcmp(message, "LEAVE") == 0) {
             send_message("Bye!\r\n", clientSock);
 
