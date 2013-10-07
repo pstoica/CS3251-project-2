@@ -15,8 +15,11 @@
 #define MAXPENDING 5        /* Maximum outstanding connection requests */
 
 list *file_list;
-void *thread_main(void *args); /* Main program of a thread */
+static int users = 0;
+
+void *thread_main(void *args);                /* Main program of a thread */
 void handle_client(int clientSock);           /* TCP client handling function */
+void log_action(unsigned int user, char *message);
 
 int main(int argc, char *argv[]) {
     int servSock;
@@ -68,17 +71,19 @@ void *thread_main(void *threadArgs) {
 }
 
 void handle_client(int clientSock) {
-    // FIXME: log signin
     list *client_list = create_list();
     list *diff_list = create_list();
     list *temp_list = create_list();
+
+    int user = ++users;
     printf("User signed in.\n");
+    log_action(user, "JOINED");
 
     while (true) {
         char *request;
         char *message = get_request(clientSock);
         request = strtok(message, "\r\n");
-        printf("Received Request: %s\n", request);
+        log_action(user, request);
 
         // parse commands
         if (strcmp(request, "LIST") == 0) {
@@ -120,4 +125,17 @@ void handle_client(int clientSock) {
         	// send back help or invalid command notification msg
         }
     }
+}
+
+void log_action(unsigned int user, char *message) {
+    FILE *fp;
+    char *buffer;
+    int buffer_size;
+
+    fp = fopen("log.txt", "a+");
+
+    buffer_size = asprintf(&buffer, "%d: %s\n", user, message);
+
+    fwrite(buffer, sizeof(buffer[0]), buffer_size/sizeof(buffer[0]), fp);
+    fclose(fp);
 }
