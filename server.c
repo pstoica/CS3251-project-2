@@ -20,6 +20,7 @@ static int users = 0;
 void *thread_main(void *args);                /* Main program of a thread */
 void handle_client(int clientSock);           /* TCP client handling function */
 void log_action(unsigned int user, char *message);
+void get_client_ip(int clientSock, char *buf);
 
 int main(int argc, char *argv[]) {
     int servSock;
@@ -73,11 +74,14 @@ void *thread_main(void *threadArgs) {
 void handle_client(int clientSock) {
     list *client_list = create_list();
     list *diff_list = create_list();
-    list *temp_list = create_list();
 
     int user = ++users;
-    printf("User signed in.\n");
-    log_action(user, "JOINED");
+    char clnt_ip[INET_ADDRSTRLEN+5]; 
+    get_client_ip(clientSock, clnt_ip);
+    char *msg;
+    asprintf(&msg, "User signed in (%s)", clnt_ip);
+    log_action(user, msg);
+    free(msg);
 
     while (true) {
         char *request;
@@ -89,7 +93,6 @@ void handle_client(int clientSock) {
         if (strcmp(request, "LIST") == 0) {
             empty_list(client_list, free_file);
             read_directory(client_list);
-            // Goes through the list and sends the filename and checksum to client
             build_and_send_list(client_list, clientSock);
             
         } else if (strcmp(request, "DIFF") == 0 || strcmp(request, "PULL") == 0) {
@@ -108,17 +111,19 @@ void handle_client(int clientSock) {
             
         } else if (strcmp(request, "LEAVE") == 0) {
             send_message("Bye!\r\n", clientSock);
-
-            // FIXME: log signout
-            printf("User signed out.\n");
+            log_action(user, "User signed out.");
 
             close(clientSock);
             break;
         } else if(strcmp(request, "sendfile") == 0) {
         	char *file_req = strtok(NULL, "\r\n");
-        	printf("%s requested\n", file_req);
+        	char *msg_to_log = NULL;
+        	int len = asprintf(&msg_to_log, "%s requested", file_req);
+        	log_action(user, msg_to_log);
+        	free(msg_to_log);
         	send_file(file_req, clientSock);
-        	printf("%s file sent\n", file_req);
+        	len = asprintf(&msg_to_log, "%s sent to user", file_req);
+        	free(msg_to_log);
         	
         } else {
             send_message("Invalid request.\n", clientSock);
@@ -127,14 +132,31 @@ void handle_client(int clientSock) {
     }
 }
 
+void get_client_ip(int clientSock, char *buf){
+	socklen_t len;
+	struct sockaddr_storage addr;
+	char ip[INET_ADDRSTRLEN];
+	int port;
+
+	len = sizeof addr;
+	getpeername(clientSock, (struct sockaddr*)&addr, &len);
+	
+	struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+    port = ntohs(s->sin_port);
+    inet_ntop(AF_INET, &s->sin_addr, ip, sizeof(ip));
+    
+    snprintf(buf, sizeof(ip)+5, "%s:%i", ip, port);
+}
+
 void log_action(unsigned int user, char *message) {
     FILE *fp;
     char *buffer;
     int buffer_size;
+    char *ts = timestamp();
 
     fp = fopen("log.txt", "a+");
 
-    buffer_size = asprintf(&buffer, "%d: %s\n", user, message);
+    buffer_size = asprintf(&buffer, "[%s] %d: %s\n", ts, user, message);
 
     fwrite(buffer, sizeof(buffer[0]), buffer_size/sizeof(buffer[0]), fp);
     fclose(fp);

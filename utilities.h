@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
+#include <time.h>
 #include "list.h"
 
 #pragma once
@@ -16,6 +17,7 @@
 #define RECEIVE_BUFFER_SIZE 512      /* The receive buffer size */
 #define SEND_BUFFER_SIZE 512      /* The send buffer size */
 #define MAXPENDING 5
+#define current_ts() (unsigned int)time(NULL)
 
 struct thread_args {
     int clientSock;
@@ -44,5 +46,6 @@ void send_file(char *filename, int clnt_sock);
 void recv_file(filenode *file, int sock);
 void deserialize(list *file_list, char *message);
 int file_comparator(const void *data1, const void *data2);
+char *timestamp();
 
 
