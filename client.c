@@ -9,8 +9,18 @@
 
 /* Included libraries */
 
-#include "client.h"
+#include <stdio.h>          /* for printf() and fprintf() */
+#include <sys/socket.h>     /* for socket(), connect(), send(), and recv() */
+#include <arpa/inet.h>      /* for sockaddr_in and inet_addr() */
+#include <stdlib.h>         /* supports all sorts of functionality */
+#include <unistd.h>         /* for close() */
+#include <string.h>         /* support any string ops */
+#include <stdbool.h>
+#include <ctype.h>			/* for toupper() for command case formatting */
 #include "utilities.h"
+
+#define CMDLEN 5				/* for the cmd and the \n */
+#define INPUT_BUFFER_MAX 80		/* max length of input buffer */
 
 list *local_list;
 list *server_list;
@@ -25,8 +35,8 @@ int main(int argc, char *argv[]){
 	int i;
 	
 	char *input = (char *)malloc(INPUT_BUFFER_MAX);	
-	char sndBuf[SEND_BUFFER_SIZE];
-	char rcvBuf[RECEIVE_BUFFER_SIZE];
+	char sndBuf[BUFFER_SIZE];
+	char rcvBuf[BUFFER_SIZE];
 	
 	size_t msgLength;
 	ssize_t numBytes;
@@ -42,8 +52,8 @@ int main(int argc, char *argv[]){
     server_list = create_list();
 	
 	/* zero out all buffers */
-	memset(&sndBuf, 0, SEND_BUFFER_SIZE);
-	memset(&rcvBuf, 0, RECEIVE_BUFFER_SIZE);
+	memset(&sndBuf, 0, BUFFER_SIZE);
+	memset(&rcvBuf, 0, BUFFER_SIZE);
 	memset(input, 0, INPUT_BUFFER_MAX);
 	
 	/* Create a new TCP socket */

@@ -1,23 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/stat.h> 
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <openssl/md5.h>
-#include <openssl/hmac.h>
-#include <time.h>
 #include "list.h"
 
 #pragma once
 
-#define RECEIVE_BUFFER_SIZE 512      /* The receive buffer size */
-#define SEND_BUFFER_SIZE 512      /* The send buffer size */
-#define MAXPENDING 5
-#define current_ts() (unsigned int)time(NULL)
+#define BUFFER_SIZE 512      /* The receive buffer size */
+#define MAX_CONNECTIONS 5
 
 struct thread_args {
     int clientSock;
@@ -30,7 +16,6 @@ typedef struct lfilenode {
   unsigned long int size;
 } filenode;
 
-char *concatenate(char *message, char *string);
 char *get_request(int sock);
 int is_valid(char *message);
 void die_with_error(char *errorMessage);        			/* Error handler */
@@ -47,5 +32,3 @@ void recv_file(filenode *file, int sock);
 void deserialize(list *file_list, char *message);
 int file_comparator(const void *data1, const void *data2);
 char *timestamp();
-
-

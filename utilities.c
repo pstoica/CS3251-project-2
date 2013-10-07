@@ -1,19 +1,31 @@
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h> 
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <openssl/md5.h>
+#include <openssl/hmac.h>
+#include <time.h>
 #include "utilities.h"
 
 char *get_request(int clientSock) {
-    char buffer[RECEIVE_BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
     int received_size = 0;
     int message_size = 0;
-    int capacity = RECEIVE_BUFFER_SIZE;
+    int capacity = BUFFER_SIZE;
     int i;
 
-    char *message = calloc(1, sizeof(char) * RECEIVE_BUFFER_SIZE);
+    char *message = calloc(1, sizeof(char) * BUFFER_SIZE);
     assert(message);
 
     do {
         //printf("Receiving...\n");
-        received_size = recv(clientSock, buffer, RECEIVE_BUFFER_SIZE, 0);
+        received_size = recv(clientSock, buffer, BUFFER_SIZE, 0);
         //printf("Message length: %d\n", received_size);
 
         if (received_size < 0) {
@@ -25,10 +37,10 @@ char *get_request(int clientSock) {
             }
 
             message_size += received_size;
-            capacity += RECEIVE_BUFFER_SIZE;
+            capacity += BUFFER_SIZE;
             message = realloc(message, capacity);
 
-            memset(buffer, 0, RECEIVE_BUFFER_SIZE);
+            memset(buffer, 0, BUFFER_SIZE);
         }
 
         //printf("%s\n", message);
@@ -40,11 +52,11 @@ char *get_request(int clientSock) {
 void send_file(char *filename, int clnt_sock){
 	struct stat stbuf;
 	FILE *fp;
-	char buff[SEND_BUFFER_SIZE];
+	char buff[BUFFER_SIZE];
 	unsigned long int filesize = 0;
 	unsigned long int sentbytes = 0;
 	
-	memset(buff, 0, SEND_BUFFER_SIZE);
+	memset(buff, 0, BUFFER_SIZE);
 	
 	if (stat(filename, &stbuf) == -1) {
 		die_with_error("stat() failed");
@@ -56,10 +68,10 @@ void send_file(char *filename, int clnt_sock){
     
     while(sentbytes < filesize)
 	{
-		uint32_t read = fread(buff,1,SEND_BUFFER_SIZE,fp);
+		uint32_t read = fread(buff,1,BUFFER_SIZE,fp);
 		uint32_t written = send(clnt_sock, buff, read,0);
 		sentbytes += written;
-		memset(buff, 0, SEND_BUFFER_SIZE);
+		memset(buff, 0, BUFFER_SIZE);
 	}
 	
 	fclose(fp);
@@ -67,23 +79,23 @@ void send_file(char *filename, int clnt_sock){
 
 void recv_file(filenode *file, int sock){
 	FILE *fp;
-	char buff[RECEIVE_BUFFER_SIZE];
+	char buff[BUFFER_SIZE];
 	unsigned long int recvbytes = 0;
 	unsigned long int byteswritten = 0;
 	
-	memset(buff, 0, RECEIVE_BUFFER_SIZE);
+	memset(buff, 0, BUFFER_SIZE);
 	
 	fp = fopen(file->name, "w");
 	if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
 	
 	uint32_t bytes = 0;
 	do {
-		bytes = recv(sock, buff, RECEIVE_BUFFER_SIZE, 0);
+		bytes = recv(sock, buff, BUFFER_SIZE, 0);
 		if(bytes > 0){
 			recvbytes += bytes;
 			uint32_t written = fwrite(buff,1,bytes,fp);
 			byteswritten += written;
-			memset(buff, 0, RECEIVE_BUFFER_SIZE);
+			memset(buff, 0, BUFFER_SIZE);
 		}
 	} while(recvbytes < file->size && bytes > 0);
 	
@@ -117,7 +129,7 @@ int setup_server_socket(unsigned short port) {
     }
 
     /* Listen for incoming connections */
-    if (listen(servSock, MAXPENDING) < 0) {
+    if (listen(servSock, MAX_CONNECTIONS) < 0) {
         die_with_error("listen() failed");
     }
 
