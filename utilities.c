@@ -319,3 +319,21 @@ void print_filenames(void *data) {
 }
 
 void free_file(void *data) { }
+
+char *timestamp() {
+	char *ts = (char *)malloc(sizeof(char)*50);
+	time_t ltime;
+	ltime = time(NULL);
+	asctime_r(localtime(&ltime), ts);
+	
+	char *tmp = ts;
+	
+	while (*tmp) {
+        if (*tmp == '\n') {
+            *tmp='\0';
+        }
+        tmp++;
+    }
+	
+	return ts;
+}
