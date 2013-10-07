@@ -81,12 +81,13 @@ void handle_client(int clientSock) {
         printf("Received Request: %s\n", request);
 
         // parse commands
-        if (strcmp(message, "LIST") == 0) {
+        if (strcmp(request, "LIST") == 0) {
             empty_list(client_list, free_file);
             read_directory(client_list);
             // Goes through the list and sends the filename and checksum to client
             build_and_send_list(client_list, clientSock);
-        } else if (strcmp(message, "DIFF") == 0) {
+            
+        } else if (strcmp(request, "DIFF") == 0 || strcmp(request, "PULL") == 0) {
             message = get_request(clientSock);
 
             empty_list(client_list, free_file);
@@ -99,22 +100,8 @@ void handle_client(int clientSock) {
             traverse_diff(file_list, client_list, diff_list, file_comparator);
 
             build_and_send_list(diff_list, clientSock);
-        } else if (strcmp(message, "PULL") == 0) {
-            message = get_request(clientSock);
-
-            empty_list(client_list, free_file);
-            deserialize(client_list, message);
-
-            empty_list(file_list, free_file);
-            read_directory(file_list);
-
-            empty_list(diff_list, free_file);
-            traverse_diff(file_list, client_list, diff_list, file_comparator);
             
-            empty_list(temp_list, free_file);
-			//send_diff_files(diff_list, temp_list, clientSock);
-            
-        } else if (strcmp(message, "LEAVE") == 0) {
+        } else if (strcmp(request, "LEAVE") == 0) {
             send_message("Bye!\r\n", clientSock);
 
             // FIXME: log signout
@@ -122,6 +109,12 @@ void handle_client(int clientSock) {
 
             close(clientSock);
             break;
+        } else if(strcmp(request, "sendfile") == 0) {
+        	char *file_req = strtok(NULL, "\r\n");
+        	printf("%s requested\n", file_req);
+        	send_file(file_req, clientSock);
+        	printf("%s file sent\n", file_req);
+        	
         } else {
             send_message("Invalid request.\n", clientSock);
         	// send back help or invalid command notification msg

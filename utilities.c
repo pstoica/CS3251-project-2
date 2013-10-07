@@ -37,6 +37,59 @@ char *get_request(int clientSock) {
     return message;
 }
 
+void send_file(char *filename, int clnt_sock){
+	struct stat stbuf;
+	FILE *fp;
+	char buff[SEND_BUFFER_SIZE];
+	unsigned long int filesize = 0;
+	unsigned long int sentbytes = 0;
+	
+	memset(buff, 0, SEND_BUFFER_SIZE);
+	
+	if (stat(filename, &stbuf) == -1) {
+		die_with_error("stat() failed");
+	}
+    filesize = (unsigned long int) stbuf.st_size;
+    
+    fp = fopen(filename,"r");
+    if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
+    
+    while(sentbytes < filesize)
+	{
+		uint32_t read = fread(buff,1,SEND_BUFFER_SIZE,fp);
+		uint32_t written = send(clnt_sock, buff, read,0);
+		sentbytes += written;
+		memset(buff, 0, SEND_BUFFER_SIZE);
+	}
+	
+	fclose(fp);
+}
+
+void recv_file(filenode *file, int sock){
+	FILE *fp;
+	char buff[RECEIVE_BUFFER_SIZE];
+	unsigned long int recvbytes = 0;
+	unsigned long int byteswritten = 0;
+	
+	memset(buff, 0, RECEIVE_BUFFER_SIZE);
+	
+	fp = fopen(file->name, "w");
+	if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
+	
+	uint32_t bytes = 0;
+	do {
+		bytes = recv(sock, buff, RECEIVE_BUFFER_SIZE, 0);
+		if(bytes > 0){
+			recvbytes += bytes;
+			uint32_t written = fwrite(buff,1,bytes,fp);
+			byteswritten += written;
+			memset(buff, 0, RECEIVE_BUFFER_SIZE);
+		}
+	} while(recvbytes < file->size && bytes > 0);
+	
+	fclose(fp);
+}
+
 int is_valid(char *message) {
     int length = strlen(message);
 
@@ -122,13 +175,14 @@ void read_directory(list *file_list){
 	if(d) {
         //printf("found d\n");
 		while((dir = readdir(d)) != NULL) {
-            //printf("file found\n");
-			if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
-				continue;
+			char *file_name = dir->d_name;
+			char *ext = strrchr(file_name, '.');
+			if(ext == NULL) continue;
+			if(strcmp(ext, ".mp3")) continue;
+			ext = NULL;
 			
 			// Only adds 'regular' files to linked list
 			if(dir->d_type == DT_REG){
-				char *file_name = dir->d_name;
 
                 filenode *file = malloc(sizeof(filenode));
                 file->name = file_name;
@@ -240,52 +294,7 @@ void build_and_send_list(list *file_list, int clnt_sock){
 	}
 }
 
-/*void send_diff_files(list *file_list, list *send_list, int clnt_sock){
-	struct stat stbuf;
-	filenode *current = front(file_list);
-	char *buffer;
-    int buffer_size = 0;
-    int i;
 
-    if (is_empty(file_list)) {
-        send_message("\r\n", clnt_sock);
-    }
-    
-    // send DIFF list, but include file sizes so client knows how big each file it is receiving is
-    while(!is_empty(file_list)){
-    	filenode *temp = malloc(sizeof(filenode));
-    	if (stat(current->name, &stbuf) == -1) {
-    		die_with_error("stat() failed");
-    	}
-    	temp->name = current->name;
-    	temp->size = stbuf.st_size;
-    	temp->checksum = current->checksum;
-    	push_back(send_list, temp);
-    	
-    	remove_front(file_list, free_file);
-    	if (is_empty(file_list)) {
-            // end, add return carriage
-            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\r\n", current->name, current->checksum, temp->size);
-        } else {
-            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, temp->size);
-        }
-
-        send_message(buffer, clnt_sock);
-        free(buffer);
-
-        current = front(file_list);
-    }
-    
-    //now go through the temp list and send each file
-    current = front(send_list);
-    
-    while(!is_empty(send_list)){
-    	//send file in current 
-    	remove_front(send_list, free_file);
-    	current = front(send_list);
-    }
-	
-}*/
 
 int file_comparator(const void *data1, const void *data2) {
     int result;

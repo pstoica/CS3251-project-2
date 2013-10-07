@@ -14,6 +14,7 @@
 
 list *local_list;
 list *server_list;
+int i;
 
 /*
  *	Thoughts
@@ -104,8 +105,29 @@ int main(int argc, char *argv[]){
 		    if (server_list->size == 0) {
 		    	printf("No files pulled.\n");
 		    } else {
-		    	//receive the files???
-		    	printf("%i files need to be pulled.\n", server_list->size);
+		    	traverse(server_list, print_filenames);
+		    	
+		    	filenode *current = front(server_list);
+		    	char *buffer;
+    			int buffer_size = 0;
+    			FILE *file;
+		    	while(!is_empty(server_list)){
+		    		remove_front(server_list, free_file);
+		    		//remove file if exists
+		    		if((file = fopen(current->name, "r")) != NULL){
+		    			fclose(file);
+		    			remove(current->name);
+		    		}
+		    		buffer_size = asprintf(&buffer, "sendfile\r\n%s\r\n", current->name);
+		    		//send recv ready msg
+		    		send_message(buffer, sock);
+		    		free(buffer);
+		    		//recv and save as new file
+		    		printf("receiving %s\n", current->name);
+		    		recv_file(current, sock);
+		    		printf("%s recieved\n", current->name);
+		    		current = front(server_list);
+		    	}
 		    }
 		} else {
 			printf("%s\n", message);
