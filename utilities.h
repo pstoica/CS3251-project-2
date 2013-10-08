@@ -11,8 +11,6 @@
 #define FETCH 3
 #define LEAVE 4
 
-#define var_sizeof(v)  (size_t)((char *)(&(v) + 1) - (char *)&(v))
-
 struct thread_args {
     int sock;
 };
