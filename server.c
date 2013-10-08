@@ -221,7 +221,7 @@ void log_action(unsigned int user, char *message) {
     int buffer_size;
     char *ts = timestamp();
 
-    fp = fopen("log.txt", "a+");
+    fp = fopen("activity.log", "a+");
 
     buffer_size = asprintf(&buffer, "[%s] %d: %s\n", ts, user, message);
 
