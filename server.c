@@ -9,16 +9,30 @@
 
 /*Included libraries*/
 
-#include "server.h"
+#include <stdio.h>          /* for printf() and fprintf() */
+#include <sys/socket.h>     /* for socket(), connect(), send(), and recv() */
+#include <sys/select.h>     /* for select() */
+#include <arpa/inet.h>      /* for sockaddr_in and inet_addr() */
+#include <stdlib.h>         /* supports all sorts of functionality */
+#include <unistd.h>         /* for close() */
+#include <string.h>         /* support any string ops */
+#include <stdbool.h>
+#include <pthread.h>
+#include "list.h"
 #include "utilities.h"
 
-#define MAXPENDING 5        /* Maximum outstanding connection requests */
+#define MAX_CONNECTIONS 5        /* Maximum outstanding connection requests */
 
-list *file_list;
 static int users = 0;
 
-void *thread_main(void *args);                /* Main program of a thread */
-void handle_client(int clientSock);           /* TCP client handling function */
+void *thread_main(void *args);   /* Main program of a thread */
+
+void perform_list(int sock, request *req, list *file_list);
+void perform_diff(int sock, request *req, list *file_list, list *client_list, list *diff_list);
+void perform_pull(int sock, request *req, list *file_list);
+void perform_fetch(int sock, request *req, int user);
+void perform_leave(int sock, request *req);
+
 void log_action(unsigned int user, char *message);
 void get_client_ip(int clientSock, char *buf);
 
@@ -29,16 +43,16 @@ int main(int argc, char *argv[]) {
     pthread_t threadID;
     struct thread_args *threadArgs;
 
-    file_list = create_list();
-
     /* Test for correct number of arguments */
     if (argc != 2) {
         fprintf(stderr,"Usage: %s <SERVER PORT>\n", argv[0]);
         exit(1);
     }
 
-    port = atoi(argv[1]); /* First argument: local port */
+    /* local port */
+    port = atoi(argv[1]);
     servSock = setup_server_socket(port);
+
     printf("GTmyMusic server started.\n");
 
     while (true) {
@@ -48,30 +62,89 @@ int main(int argc, char *argv[]) {
             die_with_error("pthread_create() failed");
         }
 
-        threadArgs->clientSock = clientSock;
+        threadArgs->sock = clientSock;
 
         if (pthread_create(&threadID, NULL, thread_main, (void *) threadArgs) != 0) {
             die_with_error("pthread_create() failed");
         }
-
-        printf("with thread %ld\n", (long int) threadID);
     }
 }
 
-void *thread_main(void *threadArgs) {
-    int clientSock;
+void perform_list(int sock, request *req, list *file_list) {
+    response res;
+    char *list;
 
-    pthread_detach(pthread_self());
+    empty_list(file_list, free_file);
+    read_directory(file_list);
+    list = traverse_to_string(file_list, file_to_string);
 
-    clientSock = ((struct thread_args *) threadArgs)->clientSock;
-    free(threadArgs);
+    res.header.size = (sizeof(char) * (strlen(list) + 1));
+    res.data = list;
 
-    handle_client(clientSock);
-
-    return (NULL);
+    send_data(sock, &(res.header), sizeof(res.header));
+    send_data(sock, res.data, res.header.size);
 }
 
-void handle_client(int clientSock) {
+void perform_diff(int sock, request *req, list *file_list, list *client_list, list *diff_list) {
+    char *list;
+    response res;
+
+    list = get_data(sock, req->header.size);
+
+    empty_list(client_list, free_file);
+    deserialize_list(client_list, list);
+
+    empty_list(file_list, free_file);
+    read_directory(file_list);
+
+    empty_list(diff_list, free_file);
+    traverse_diff(file_list, client_list, diff_list, file_comparator);
+
+    list = traverse_to_string(diff_list, file_to_string);
+
+    res.header.size = (sizeof(char) * (strlen(list) + 1));
+    res.data = list;
+
+    send_data(sock, &(res.header), sizeof(res.header));
+    send_data(sock, res.data, res.header.size);
+}
+
+/* just use perform_diff */
+void perform_pull(int sock, request *req, list *file_list) {
+    printf("PERFORM PULL\n");
+}
+
+void perform_fetch(int sock, request *req, int user) {
+    response res;
+    char *file_req;
+    char *msg_to_log;
+    int len;
+
+    file_req = get_data(sock, req->header.size);
+    len = asprintf(&msg_to_log, "%s requested", file_req);
+
+    log_action(user, msg_to_log);
+    free(msg_to_log);
+
+    send_file(sock, &res, file_req);
+
+    len = asprintf(&msg_to_log, "%s sent to user", file_req);
+    log_action(user, msg_to_log);
+    free(msg_to_log);
+}
+
+void perform_leave(int sock, request *req) {
+    close(sock);
+}
+
+void *thread_main(void *threadArgs) {
+    bool running = true;
+    int clientSock = ((struct thread_args *) threadArgs)->sock;
+
+    pthread_detach(pthread_self());
+    free(threadArgs);
+
+    list *file_list = create_list();
     list *client_list = create_list();
     list *diff_list = create_list();
 
@@ -79,57 +152,45 @@ void handle_client(int clientSock) {
     char clnt_ip[INET_ADDRSTRLEN+5]; 
     get_client_ip(clientSock, clnt_ip);
     char *msg;
+
     asprintf(&msg, "User signed in (%s)", clnt_ip);
     log_action(user, msg);
+
     free(msg);
 
-    while (true) {
-        char *request;
-        char *message = get_request(clientSock);
-        request = strtok(message, "\r\n");
-        log_action(user, request);
+    while (running) {
+        request req;
 
-        // parse commands
-        if (strcmp(request, "LIST") == 0) {
-            empty_list(client_list, free_file);
-            read_directory(client_list);
-            build_and_send_list(client_list, clientSock);
-            
-        } else if (strcmp(request, "DIFF") == 0 || strcmp(request, "PULL") == 0) {
-            message = get_request(clientSock);
+        get_request_header(clientSock, &(req.header), sizeof(req.header));
 
-            empty_list(client_list, free_file);
-            deserialize(client_list, message);
-
-            empty_list(file_list, free_file);
-            read_directory(file_list);
-
-            empty_list(diff_list, free_file);
-            traverse_diff(file_list, client_list, diff_list, file_comparator);
-
-            build_and_send_list(diff_list, clientSock);
-            
-        } else if (strcmp(request, "LEAVE") == 0) {
-            send_message("Bye!\r\n", clientSock);
-            log_action(user, "User signed out.");
-
-            close(clientSock);
-            break;
-        } else if(strcmp(request, "sendfile") == 0) {
-        	char *file_req = strtok(NULL, "\r\n");
-        	char *msg_to_log = NULL;
-        	int len = asprintf(&msg_to_log, "%s requested", file_req);
-        	log_action(user, msg_to_log);
-        	free(msg_to_log);
-        	send_file(file_req, clientSock);
-        	len = asprintf(&msg_to_log, "%s sent to user", file_req);
-        	free(msg_to_log);
-        	
-        } else {
-            send_message("Invalid request.\n", clientSock);
-        	// send back help or invalid command notification msg
+        switch (req.header.type) {
+            case LIST:
+                log_action(user, "LIST");
+                perform_list(clientSock, &req, file_list);
+                break;
+            case DIFF:
+                log_action(user, "DIFF");
+                perform_diff(clientSock, &req, file_list, client_list, diff_list);
+                break;
+            case PULL:
+                log_action(user, "PULL");
+                perform_diff(clientSock, &req, file_list, client_list, diff_list);
+                break;
+            case FETCH:
+                perform_fetch(clientSock, &req, user);
+                break;
+            case LEAVE:
+                log_action(user, "LEAVE");
+                perform_leave(clientSock, &req);
+                running = false;
+                break;
         }
     }
+
+    empty_list(file_list, free_file);
+    empty_list(client_list, free_file);
+    empty_list(diff_list, free_file);
+    return (NULL);
 }
 
 void get_client_ip(int clientSock, char *buf){

@@ -26,6 +26,9 @@ typedef struct llist {
 
 /* A function pointer type that points to a function that takes in a void* and returns nothing call it list_op */
 typedef void (*list_op)(void*);
+
+/* returns string */
+typedef char *(*list_to_string)(void*);
 /* A function pointer type that points to a function that takes in a const void* and returns an int call it list_pred */
 typedef int (*list_pred)(const void*);
 /* A function pointer type that points to a function that takes in 2 const void*'s and returns an int call it equal_op 
@@ -39,6 +42,8 @@ typedef int (*equal_op)(const void*, const void*);
 ** For more details on their functionality,      **
 ** check list.c.                                 **
 ***************************************************/
+
+#define BUFFER_SIZE 512
 
 /* Creating */
 list* create_list(void);
@@ -69,6 +74,7 @@ void empty_list(list* llist, list_op free_func);
 
 /* Traversal */
 void traverse(list* llist, list_op do_func);
+char *traverse_to_string(list* llist, list_to_string do_func);
 void traverse_diff(list *llist, list *client_list, list *output, equal_op compare_func);
 
 /* Debugging Support */
