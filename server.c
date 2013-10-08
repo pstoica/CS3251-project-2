@@ -23,14 +23,13 @@
 
 #define MAX_CONNECTIONS 5        /* Maximum outstanding connection requests */
 
-list *file_list;
 static int users = 0;
 
 void *thread_main(void *args);   /* Main program of a thread */
 
-void perform_list(int sock, request *req);
-void perform_diff(int sock, request *req, list *client_list, list *diff_list);
-void perform_pull(int sock, request *req);
+void perform_list(int sock, request *req, list *file_list);
+void perform_diff(int sock, request *req, list *file_list, list *client_list, list *diff_list);
+void perform_pull(int sock, request *req, list *file_list);
 void perform_fetch(int sock, request *req, int user);
 void perform_leave(int sock, request *req);
 
@@ -43,8 +42,6 @@ int main(int argc, char *argv[]) {
     unsigned short port;
     pthread_t threadID;
     struct thread_args *threadArgs;
-
-    file_list = create_list();
 
     /* Test for correct number of arguments */
     if (argc != 2) {
@@ -73,7 +70,7 @@ int main(int argc, char *argv[]) {
     }
 }
 
-void perform_list(int sock, request *req) {
+void perform_list(int sock, request *req, list *file_list) {
     response res;
     char *list;
 
@@ -88,7 +85,7 @@ void perform_list(int sock, request *req) {
     send_data(sock, res.data, res.header.size);
 }
 
-void perform_diff(int sock, request *req, list *client_list, list *diff_list) {
+void perform_diff(int sock, request *req, list *file_list, list *client_list, list *diff_list) {
     char *list;
     response res;
 
@@ -113,7 +110,7 @@ void perform_diff(int sock, request *req, list *client_list, list *diff_list) {
 }
 
 /* just use perform_diff */
-void perform_pull(int sock, request *req) {
+void perform_pull(int sock, request *req, list *file_list) {
     printf("PERFORM PULL\n");
 }
 
@@ -147,6 +144,7 @@ void *thread_main(void *threadArgs) {
     pthread_detach(pthread_self());
     free(threadArgs);
 
+    list *file_list = create_list();
     list *client_list = create_list();
     list *diff_list = create_list();
 
@@ -168,15 +166,15 @@ void *thread_main(void *threadArgs) {
         switch (req.header.type) {
             case LIST:
                 log_action(user, "LIST");
-                perform_list(clientSock, &req);
+                perform_list(clientSock, &req, file_list);
                 break;
             case DIFF:
                 log_action(user, "DIFF");
-                perform_diff(clientSock, &req, client_list, diff_list);
+                perform_diff(clientSock, &req, file_list, client_list, diff_list);
                 break;
             case PULL:
                 log_action(user, "PULL");
-                perform_diff(clientSock, &req, client_list, diff_list);
+                perform_diff(clientSock, &req, file_list, client_list, diff_list);
                 break;
             case FETCH:
                 perform_fetch(clientSock, &req, user);
@@ -189,6 +187,9 @@ void *thread_main(void *threadArgs) {
         }
     }
 
+    empty_list(file_list, free_file);
+    empty_list(client_list, free_file);
+    empty_list(diff_list, free_file);
     return (NULL);
 }
 

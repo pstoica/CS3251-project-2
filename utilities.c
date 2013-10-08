@@ -123,7 +123,8 @@ bool send_file(int sock, response *res, char *filename) {
     memset(buff, 0, BUFFER_SIZE);
     
     if (stat(filename, &stbuf) == -1) {
-        die_with_error("stat() failed");
+        printf("%s\n", filename);
+        die_with_error("stat() failed for filename\n");
     }
     filesize = (unsigned long int) stbuf.st_size;
     

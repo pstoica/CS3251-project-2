@@ -135,20 +135,20 @@ void perform_pull(int sock) {
 			if((file = fopen(current->name, "r")) != NULL){
 				fclose(file);
 				remove(current->name);
-			} else {
-				req.header.type = FETCH;
-				req.header.size = sizeof(char) * (strlen(current->name));
-				req.data = current->name;
-
-				send_data(sock, &(req.header), sizeof(req.header));
-				send_data(sock, req.data, req.header.size);
-
-				get_response_header(sock, &(res.header), sizeof(res.header));
-
-				printf("receiving %s\n", current->name);
-				recv_file(sock, current, res.header.size);
-				printf("%s recieved\n", current->name);
 			}
+
+			req.header.type = FETCH;
+			req.header.size = sizeof(char) * (strlen(current->name) + 1);
+			req.data = current->name;
+
+			send_data(sock, &(req.header), sizeof(req.header));
+			send_data(sock, req.data, req.header.size);
+
+			get_response_header(sock, &(res.header), sizeof(res.header));
+
+			printf("receiving %s\n", current->name);
+			recv_file(sock, current, res.header.size);
+			printf("%s recieved\n", current->name);
 
 			current = front(server_list);
 		}
