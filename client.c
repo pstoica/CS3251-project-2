@@ -50,18 +50,45 @@ int parse_command(char *command) {
 
 void perform_list(int sock) {
 	request req;
+	response res;
 
 	req.header.type = LIST;
 	req.header.size = 0;
 	req.data = NULL;
 
-	//printf("%lu\n", var_sizeof(req.header));
+	send_data(sock, &(req.header), sizeof(req.header));
+	get_request_header(sock, &(req.header), sizeof(req.header));
+	req.data = get_data(sock, req.header.size);
+
+	empty_list(server_list, free_file);
+	deserialize_list(server_list, req.data);
+
+	if (server_list->size == 0) {
+		printf("No files found.\n");
+	} else {
+		traverse(server_list, print_filenames);
+	}
+}
+
+void perform_diff(int sock) {
+	char *list;
+	request req;
+
+	empty_list(local_list, free_file);
+	read_directory(local_list);
+	list = traverse_to_string(local_list, file_to_string);
+
+	req.header.type = LIST;
+	req.header.size = sizeof(char) * (strlen(list) + 1);
+	req.data = list;
 
 	send_data(sock, &(req.header), sizeof(req.header));
 }
 
-void perform_diff(int sock) { }
-void perform_pull(int sock) { }
+void perform_pull(int sock) {
+
+}
+
 void perform_fetch(int sock) { }
 
 void perform_leave(int sock) {

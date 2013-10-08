@@ -162,7 +162,6 @@ bool get_request_header(int sock, request_header *header, int size) {
 
     while (remaining > 0) {
         result = recv(sock, (unsigned char *) header + received, remaining, 0);
-        printf("read %d\n", result);
 
         if (result <= 0) die_with_error("read() failed");
 
@@ -171,6 +170,41 @@ bool get_request_header(int sock, request_header *header, int size) {
     }
 
     return true;
+}
+
+bool get_response_header(int sock, response_header *header, int size) {
+    int received = 0;
+    int remaining = size;
+    int result;
+
+    while (remaining > 0) {
+        result = recv(sock, (unsigned char *) header + received, remaining, 0);
+
+        if (result <= 0) die_with_error("read() failed");
+
+        received += result;
+        remaining -= result;
+    }
+
+    return true;
+}
+
+unsigned char *get_data(int sock, int size) {
+    int received = 0;
+    int remaining = size;
+    int result;
+    char *buffer = malloc(size);
+
+    while (remaining > 0) {
+        result = recv(sock, (unsigned char *) buffer + received, remaining, 0);
+
+        if (result <= 0) die_with_error("read() failed");
+
+        received += result;
+        remaining -= result;
+    }
+
+    return buffer;
 }
 
 int send_message(char *message, int sock) {
@@ -279,7 +313,7 @@ static char *checksum(FILE *inFile) {
     return checksum;
 }
 
-void deserialize(list *file_list, char *message) {
+void deserialize_list(list *file_list, char *message) {
     int count = 0;
     char *file_name;
     char *checksum;
@@ -329,12 +363,7 @@ void build_and_send_list(list *file_list, int clnt_sock){
 	while(!is_empty(file_list)) {
         remove_front(file_list, free_file);
 
-        if (is_empty(file_list)) {
-            // end, add return carriage
-            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\r\n", current->name, current->checksum, current->size);
-        } else {
-            buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, current->size);
-        }
+        buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, current->size);
 
         send_message(buffer, clnt_sock);
         free(buffer);
@@ -360,6 +389,14 @@ void print_files(void *data) {
     file_entry *file = (file_entry *) data;
     printf("%s\n", file->name);
     printf("%s\n", file->checksum);
+}
+
+char *file_to_string(void *data) {
+    char *buffer;
+    file_entry *file = (file_entry *) data;
+
+    asprintf(&buffer, "%s\n%s\n%lu\n", file->name, file->checksum, file->size);
+    return buffer;
 }
 
 void print_filenames(void *data) {

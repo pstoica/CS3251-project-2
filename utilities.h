@@ -48,10 +48,9 @@ typedef struct lresponse {
 } response;
 
 bool get_request_header(int sock, request_header *header, int size);
-bool get_request(int sock, void **buffer, int size);
 bool get_response_header(int sock, response_header *header, int size);
-bool get_response(int sock, void **buffer, int size);
 
+unsigned char *get_data(int sock, int size);
 bool send_data(int sock, void *data, int size);
 
 //char *get_request(int sock);
@@ -65,10 +64,12 @@ void read_directory(list *file_list);						/* Reads the file names in the given 
 void print_files(void *data);                   			/* Prints file data */
 void print_filenames(void *data);                           /* Prints only file names */
 void free_file(void *data);
+char *file_to_string(void *data);
 static char *checksum(FILE *inFile);            			/* Calculates md5 checksum for given filepointer */
+char *build_list(list *file_list);
 void build_and_send_list(list *file_list, int sock);	
 void send_file(char *filename, int sock);
 void recv_file(file_entry *file, int sock);
-void deserialize(list *file_list, char *message);
+void deserialize_list(list *file_list, char *message);
 int file_comparator(const void *data1, const void *data2);
 char *timestamp();

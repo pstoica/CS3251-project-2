@@ -74,14 +74,35 @@ int main(int argc, char *argv[]) {
 }
 
 void perform_list(int sock) {
-    printf("PERFORM LIST\n");
+    response res;
+    char *list;
+
+    empty_list(file_list, free_file);
+    read_directory(file_list);
+    list = traverse_to_string(file_list, file_to_string);
+
+    res.header.size = (sizeof(char) * (strlen(list) + 1));
+    printf("sending size: %d\n", res.header.size);
+    res.data = list;
+
+    send_data(sock, &(res.header), sizeof(res.header));
+    send_data(sock, res.data, res.header.size);
 }
 
-void perform_diff(int sock) { }
-void perform_pull(int sock) { }
-void perform_fetch(int sock) { }
+void perform_diff(int sock) {
+    printf("PERFORM DIFF\n");   
+}
+
+void perform_pull(int sock) {
+    printf("PERFORM PULL\n");
+}
+
+void perform_fetch(int sock) {
+    printf("PERFORM FETCH\n");
+}
 
 void perform_leave(int sock) {
+    printf("PERFORM LEAVE\n");
     close(sock);
 }
 
