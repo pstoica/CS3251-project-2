@@ -122,6 +122,7 @@ void perform_fetch(int sock, request *req, int user) {
 
     file_req = get_data(sock, req->header.size);
     len = asprintf(&msg_to_log, "%s requested", file_req);
+    printf("[User %i] FETCH %s requested\n", user, file_req);
 
     log_action(user, msg_to_log);
     free(msg_to_log);
@@ -129,6 +130,7 @@ void perform_fetch(int sock, request *req, int user) {
     send_file(sock, &res, file_req);
 
     len = asprintf(&msg_to_log, "%s sent to user", file_req);
+    printf("[User %i] FETCH %s Complete\n", user, file_req);
     log_action(user, msg_to_log);
     free(msg_to_log);
 }
@@ -153,7 +155,7 @@ void *thread_main(void *threadArgs) {
     get_client_ip(clientSock, clnt_ip);
     char *msg;
 
-    asprintf(&msg, "User signed in (%s)", clnt_ip);
+    asprintf(&msg, "User %i signed in (%s)", user, clnt_ip);
     log_action(user, msg);
 
     free(msg);
@@ -166,14 +168,17 @@ void *thread_main(void *threadArgs) {
         switch (req.header.type) {
             case LIST:
                 log_action(user, "LIST");
+                printf("[User %i] LIST\n", user);
                 perform_list(clientSock, &req, file_list);
                 break;
             case DIFF:
                 log_action(user, "DIFF");
+                printf("[User %i] DIFF\n", user);
                 perform_diff(clientSock, &req, file_list, client_list, diff_list);
                 break;
             case PULL:
                 log_action(user, "PULL");
+                printf("[User %i] PULL\n", user);
                 perform_diff(clientSock, &req, file_list, client_list, diff_list);
                 break;
             case FETCH:
@@ -181,6 +186,7 @@ void *thread_main(void *threadArgs) {
                 break;
             case LEAVE:
                 log_action(user, "LEAVE");
+                printf("[User %i] LEAVE\n", user);
                 perform_leave(clientSock, &req);
                 running = false;
                 break;
