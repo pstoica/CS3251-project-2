@@ -28,11 +28,11 @@ static int users = 0;
 
 void *thread_main(void *args);   /* Main program of a thread */
 
-void perform_list(int sock);
-void perform_diff(int sock);
-void perform_pull(int sock);
-void perform_fetch(int sock);
-void perform_leave(int sock);
+void perform_list(int sock, request *req);
+void perform_diff(int sock, request *req, list *client_list, list *diff_list);
+void perform_pull(int sock, request *req);
+void perform_fetch(int sock, request *req);
+void perform_leave(int sock, request *req);
 
 void log_action(unsigned int user, char *message);
 void get_client_ip(int clientSock, char *buf);
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     }
 }
 
-void perform_list(int sock) {
+void perform_list(int sock, request *req) {
     response res;
     char *list;
 
@@ -82,26 +82,45 @@ void perform_list(int sock) {
     list = traverse_to_string(file_list, file_to_string);
 
     res.header.size = (sizeof(char) * (strlen(list) + 1));
-    printf("sending size: %d\n", res.header.size);
     res.data = list;
 
     send_data(sock, &(res.header), sizeof(res.header));
     send_data(sock, res.data, res.header.size);
 }
 
-void perform_diff(int sock) {
-    printf("PERFORM DIFF\n");   
+void perform_diff(int sock, request *req, list *client_list, list *diff_list) {
+    char *list;
+    response res;
+
+    list = get_data(sock, req->header.size);
+
+    empty_list(client_list, free_file);
+    deserialize_list(client_list, list);
+
+    empty_list(file_list, free_file);
+    read_directory(file_list);
+
+    empty_list(diff_list, free_file);
+    traverse_diff(file_list, client_list, diff_list, file_comparator);
+
+    list = traverse_to_string(diff_list, file_to_string);
+
+    res.header.size = (sizeof(char) * (strlen(list) + 1));
+    res.data = list;
+
+    send_data(sock, &(res.header), sizeof(res.header));
+    send_data(sock, res.data, res.header.size);
 }
 
-void perform_pull(int sock) {
+void perform_pull(int sock, request *req) {
     printf("PERFORM PULL\n");
 }
 
-void perform_fetch(int sock) {
+void perform_fetch(int sock, request *req) {
     printf("PERFORM FETCH\n");
 }
 
-void perform_leave(int sock) {
+void perform_leave(int sock, request *req) {
     printf("PERFORM LEAVE\n");
     close(sock);
 }
@@ -134,22 +153,22 @@ void *thread_main(void *threadArgs) {
         switch (req.header.type) {
             case LIST:
                 log_action(user, "LIST");
-                perform_list(clientSock);
+                perform_list(clientSock, &req);
                 break;
             case DIFF:
                 log_action(user, "DIFF");
-                perform_diff(clientSock);
+                perform_diff(clientSock, &req, client_list, diff_list);
                 break;
             case PULL:
                 log_action(user, "PULL");
-                perform_pull(clientSock);
+                perform_pull(clientSock, &req);
                 break;
             case FETCH:
                 log_action(user, "FETCH");
-                perform_fetch(clientSock);
+                perform_fetch(clientSock, &req);
             case LEAVE:
                 log_action(user, "LEAVE");
-                perform_leave(clientSock);
+                perform_leave(clientSock, &req);
                 running = false;
                 break;
         }

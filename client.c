@@ -57,11 +57,11 @@ void perform_list(int sock) {
 	req.data = NULL;
 
 	send_data(sock, &(req.header), sizeof(req.header));
-	get_request_header(sock, &(req.header), sizeof(req.header));
-	req.data = get_data(sock, req.header.size);
+	get_response_header(sock, &(res.header), sizeof(res.header));
+	res.data = get_data(sock, res.header.size);
 
 	empty_list(server_list, free_file);
-	deserialize_list(server_list, req.data);
+	deserialize_list(server_list, res.data);
 
 	if (server_list->size == 0) {
 		printf("No files found.\n");
@@ -73,16 +73,29 @@ void perform_list(int sock) {
 void perform_diff(int sock) {
 	char *list;
 	request req;
+	response res;
 
 	empty_list(local_list, free_file);
 	read_directory(local_list);
 	list = traverse_to_string(local_list, file_to_string);
 
-	req.header.type = LIST;
+	req.header.type = DIFF;
 	req.header.size = sizeof(char) * (strlen(list) + 1);
 	req.data = list;
 
 	send_data(sock, &(req.header), sizeof(req.header));
+	send_data(sock, req.data, req.header.size);
+	get_response_header(sock, &(res.header), sizeof(res.header));
+	res.data = get_data(sock, res.header.size);
+
+	empty_list(server_list, free_file);
+    deserialize_list(server_list, res.data);
+
+	if (server_list->size == 0) {
+		printf("No files found.\n");
+	} else {
+		traverse(server_list, print_filenames);
+	}
 }
 
 void perform_pull(int sock) {
