@@ -13,7 +13,7 @@
 #include <time.h>
 #include "utilities.h"
 
-char *get_request(int clientSock) {
+/*char *get_request(int clientSock) {
     char buffer[BUFFER_SIZE];
     int received_size = 0;
     int message_size = 0;
@@ -47,7 +47,7 @@ char *get_request(int clientSock) {
     } while (!is_valid(message));
 
     return message;
-}
+}*/
 
 void send_file(char *filename, int clnt_sock){
 	struct stat stbuf;
@@ -77,7 +77,7 @@ void send_file(char *filename, int clnt_sock){
 	fclose(fp);
 }
 
-void recv_file(filenode *file, int sock){
+void recv_file(file_entry *file, int sock){
 	FILE *fp;
 	char buff[BUFFER_SIZE];
 	unsigned long int recvbytes = 0;
@@ -134,6 +134,43 @@ int setup_server_socket(unsigned short port) {
     }
 
     return servSock;
+}
+
+bool send_data(int sock, void *data, int size) {
+    int sent = 0;
+    int remaining = size;
+    int result;
+
+    if (data == NULL || size == 0) return true;
+
+    while (remaining > 0) {
+        result = send(sock, (unsigned char *) data + sent, remaining, 0);
+
+        if (result < 0) die_with_error("write() failed");
+
+        sent += result;
+        remaining -= result;
+    }
+
+    return true;
+}
+
+bool get_request_header(int sock, request_header *header, int size) {
+    int received = 0;
+    int remaining = size;
+    int result;
+
+    while (remaining > 0) {
+        result = recv(sock, (unsigned char *) header + received, remaining, 0);
+        printf("read %d\n", result);
+
+        if (result <= 0) die_with_error("read() failed");
+
+        received += result;
+        remaining -= result;
+    }
+
+    return true;
 }
 
 int send_message(char *message, int sock) {
@@ -196,7 +233,7 @@ void read_directory(list *file_list){
 			// Only adds 'regular' files to linked list
 			if(dir->d_type == DT_REG){
 
-                filenode *file = malloc(sizeof(filenode));
+                file_entry *file = malloc(sizeof(file_entry));
                 file->name = file_name;
                 
                 if (stat(file->name, &stbuf) == -1) {
@@ -265,7 +302,7 @@ void deserialize(list *file_list, char *message) {
 
         if (count == 3) {
             //printf("found file node\n");
-            filenode *file = malloc(sizeof(filenode));
+            file_entry *file = malloc(sizeof(file_entry));
             file->name = file_name;
             file->checksum = checksum;
             file->size = (unsigned long int)size;
@@ -280,7 +317,7 @@ void deserialize(list *file_list, char *message) {
 }
 
 void build_and_send_list(list *file_list, int clnt_sock){
-	filenode *current = front(file_list);
+	file_entry *current = front(file_list);
     char *buffer;
     int buffer_size = 0;
     int i;
@@ -310,8 +347,8 @@ void build_and_send_list(list *file_list, int clnt_sock){
 
 int file_comparator(const void *data1, const void *data2) {
     int result;
-    filenode *file1 = (filenode *) data1;
-    filenode *file2 = (filenode *) data2;
+    file_entry *file1 = (file_entry *) data1;
+    file_entry *file2 = (file_entry *) data2;
 
     result = ((strcmp(file1->name, file2->name) == 0) &&
               (strcmp(file1->checksum, file2->checksum) == 0));
@@ -320,13 +357,13 @@ int file_comparator(const void *data1, const void *data2) {
 }
 
 void print_files(void *data) {
-    filenode *file = (filenode *) data;
+    file_entry *file = (file_entry *) data;
     printf("%s\n", file->name);
     printf("%s\n", file->checksum);
 }
 
 void print_filenames(void *data) {
-    filenode *file = (filenode *) data;
+    file_entry *file = (file_entry *) data;
     printf("%s\n", file->name);
 }
 

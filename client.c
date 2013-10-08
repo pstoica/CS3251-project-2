@@ -20,30 +20,82 @@
 #include "utilities.h"
 
 #define CMDLEN 5				/* for the cmd and the \n */
-#define INPUT_BUFFER_MAX 80		/* max length of input buffer */
+#define INPUT_BUFFER_MAX 32		/* max length of input buffer */
 
 list *local_list;
 list *server_list;
-int i;
 
-/*
- *	Thoughts
- *		Consider taking in dir to music home when started
- */
-int main(int argc, char *argv[]){
-	struct sockaddr_in serv_addr; 	/* the server address */
+int parse_command(char *command) {
+	if (command == NULL) {
+		return -1;
+	}
+
+	size_t length = strlen(command) - 1;
+	if (command[length] == '\n') command[length] = '\0';
+
+	if (strcmp(command, "LIST") == 0) {
+		return LIST;
+	} else if (strcmp(command, "DIFF") == 0) {
+		return DIFF;
+	} else if (strcmp(command, "PULL") == 0) {
+		return PULL;
+	} else if (strcmp(command, "LEAVE") == 0) {
+		return LEAVE;
+	} else if (strcmp(command, "FETCH") == 0) {
+		return FETCH;
+	} else  {
+		return -1;
+	}
+}
+
+void perform_list(int sock) {
+	request req;
+
+	req.header.type = LIST;
+	req.header.size = 0;
+	req.data = NULL;
+
+	//printf("%lu\n", var_sizeof(req.header));
+
+	send_data(sock, &(req.header), sizeof(req.header));
+}
+
+void perform_diff(int sock) { }
+void perform_pull(int sock) { }
+void perform_fetch(int sock) { }
+
+void perform_leave(int sock) {
+	request req;
+
+	req.header.type = LEAVE;
+	req.header.size = 0;
+	req.data = NULL;
+
+	send_data(sock, &(req.header), sizeof(req.header));
+	exit(0);
+}
+
+int main(int argc, char *argv[]) {
+	struct sockaddr_in serv_addr;
 	int i;
-	
-	char *input = (char *)malloc(INPUT_BUFFER_MAX);	
-	char sndBuf[BUFFER_SIZE];
-	char rcvBuf[BUFFER_SIZE];
-	
+
+	/*
 	size_t msgLength;
 	ssize_t numBytes;
 	unsigned int totalBytesRcvd;
+	*/
+	
+	char *input = (char *) malloc(INPUT_BUFFER_MAX);
+	char sndBuf[BUFFER_SIZE];
+	char rcvBuf[BUFFER_SIZE];
+
+	/* zero out all buffers */
+	memset(&sndBuf, 0, BUFFER_SIZE);
+	memset(&rcvBuf, 0, BUFFER_SIZE);
+	memset(input, 0, INPUT_BUFFER_MAX);
 
     if (argc != 3) {
-        fprintf(stderr,"Usage: %s <SERVER HOST> <SERVER PORT>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <SERVER HOST> <SERVER PORT>\n", argv[0]);
         exit(1);
     }
 
@@ -51,14 +103,9 @@ int main(int argc, char *argv[]){
     local_list = create_list();
     server_list = create_list();
 	
-	/* zero out all buffers */
-	memset(&sndBuf, 0, BUFFER_SIZE);
-	memset(&rcvBuf, 0, BUFFER_SIZE);
-	memset(input, 0, INPUT_BUFFER_MAX);
-	
 	/* Create a new TCP socket */
 	int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if(sock < 0)
+	if(sock < 0) 
 		die_with_error("socket() failed\n");
 		
 	/* Construct the server address structure */
@@ -75,9 +122,24 @@ int main(int argc, char *argv[]){
 	printf("Welcome to GTmyMusic.\n");
 
 	while (true) {
-		scanf("%s", input);
+		fgets(input, INPUT_BUFFER_MAX, stdin);
 
-		if (strcmp(input, "DIFF") == 0) {
+		switch(parse_command(input)) {
+			case LIST:
+				perform_list(sock);
+				break;
+			case DIFF:
+				perform_diff(sock);
+				break;
+			case PULL:
+				perform_pull(sock);
+				break;
+			case LEAVE:
+				perform_leave(sock);
+				break;
+		}
+
+		/*if (strcmp(input, "DIFF") == 0) {
 			send_message("DIFF\r\n", sock);
 
 			empty_list(local_list, free_file);
@@ -95,9 +157,9 @@ int main(int argc, char *argv[]){
 		} else if (strcmp(input, "LEAVE") == 0) {
 			send_message("LEAVE\r\n", sock);
 			exit(0);
-		}
+		}*/
 
-		char *message = get_request(sock);
+		/*char *message = get_request(sock);
 		
 		if (strcmp(input, "LIST") == 0 || strcmp(input, "DIFF") == 0){
 		    empty_list(server_list, free_file);
@@ -117,7 +179,7 @@ int main(int argc, char *argv[]){
 		    } else {
 		    	traverse(server_list, print_filenames);
 		    	
-		    	filenode *current = front(server_list);
+		    	file_entry *current = front(server_list);
 		    	char *buffer;
     			int buffer_size = 0;
     			FILE *file;
@@ -143,20 +205,10 @@ int main(int argc, char *argv[]){
 			printf("%s\n", message);
 		}
 
-		free(message);
+		free(message);*/
 	}
 	
 	close(sock);
 	
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-

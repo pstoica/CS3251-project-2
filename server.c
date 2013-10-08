@@ -26,8 +26,14 @@
 list *file_list;
 static int users = 0;
 
-void *thread_main(void *args);                /* Main program of a thread */
-void handle_client(int clientSock);           /* TCP client handling function */
+void *thread_main(void *args);   /* Main program of a thread */
+
+void perform_list(int sock);
+void perform_diff(int sock);
+void perform_pull(int sock);
+void perform_fetch(int sock);
+void perform_leave(int sock);
+
 void log_action(unsigned int user, char *message);
 void get_client_ip(int clientSock, char *buf);
 
@@ -46,8 +52,10 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    port = atoi(argv[1]); /* First argument: local port */
+    /* local port */
+    port = atoi(argv[1]);
     servSock = setup_server_socket(port);
+
     printf("GTmyMusic server started.\n");
 
     while (true) {
@@ -57,30 +65,33 @@ int main(int argc, char *argv[]) {
             die_with_error("pthread_create() failed");
         }
 
-        threadArgs->clientSock = clientSock;
+        threadArgs->sock = clientSock;
 
         if (pthread_create(&threadID, NULL, thread_main, (void *) threadArgs) != 0) {
             die_with_error("pthread_create() failed");
         }
-
-        printf("with thread %ld\n", (long int) threadID);
     }
 }
 
-void *thread_main(void *threadArgs) {
-    int clientSock;
-
-    pthread_detach(pthread_self());
-
-    clientSock = ((struct thread_args *) threadArgs)->clientSock;
-    free(threadArgs);
-
-    handle_client(clientSock);
-
-    return (NULL);
+void perform_list(int sock) {
+    printf("PERFORM LIST\n");
 }
 
-void handle_client(int clientSock) {
+void perform_diff(int sock) { }
+void perform_pull(int sock) { }
+void perform_fetch(int sock) { }
+
+void perform_leave(int sock) {
+    close(sock);
+}
+
+void *thread_main(void *threadArgs) {
+    bool running = true;
+    int clientSock = ((struct thread_args *) threadArgs)->sock;
+
+    pthread_detach(pthread_self());
+    free(threadArgs);
+
     list *client_list = create_list();
     list *diff_list = create_list();
 
@@ -88,17 +99,41 @@ void handle_client(int clientSock) {
     char clnt_ip[INET_ADDRSTRLEN+5]; 
     get_client_ip(clientSock, clnt_ip);
     char *msg;
+
     asprintf(&msg, "User signed in (%s)", clnt_ip);
     log_action(user, msg);
+
     free(msg);
 
-    while (true) {
-        char *request;
-        char *message = get_request(clientSock);
-        request = strtok(message, "\r\n");
-        log_action(user, request);
+    while (running) {
+        request req;
 
-        // parse commands
+        get_request_header(clientSock, &(req.header), sizeof(req.header));
+
+        switch (req.header.type) {
+            case LIST:
+                log_action(user, "LIST");
+                perform_list(clientSock);
+                break;
+            case DIFF:
+                log_action(user, "DIFF");
+                perform_diff(clientSock);
+                break;
+            case PULL:
+                log_action(user, "PULL");
+                perform_pull(clientSock);
+                break;
+            case FETCH:
+                log_action(user, "FETCH");
+                perform_fetch(clientSock);
+            case LEAVE:
+                log_action(user, "LEAVE");
+                perform_leave(clientSock);
+                running = false;
+                break;
+        }
+
+        /*
         if (strcmp(request, "LIST") == 0) {
             empty_list(client_list, free_file);
             read_directory(client_list);
@@ -125,20 +160,23 @@ void handle_client(int clientSock) {
             close(clientSock);
             break;
         } else if(strcmp(request, "sendfile") == 0) {
-        	char *file_req = strtok(NULL, "\r\n");
-        	char *msg_to_log = NULL;
-        	int len = asprintf(&msg_to_log, "%s requested", file_req);
-        	log_action(user, msg_to_log);
-        	free(msg_to_log);
-        	send_file(file_req, clientSock);
-        	len = asprintf(&msg_to_log, "%s sent to user", file_req);
-        	free(msg_to_log);
-        	
+            char *file_req = strtok(NULL, "\r\n");
+            char *msg_to_log = NULL;
+            int len = asprintf(&msg_to_log, "%s requested", file_req);
+            log_action(user, msg_to_log);
+            free(msg_to_log);
+            send_file(file_req, clientSock);
+            len = asprintf(&msg_to_log, "%s sent to user", file_req);
+            free(msg_to_log);
+            
         } else {
             send_message("Invalid request.\n", clientSock);
-        	// send back help or invalid command notification msg
+            // send back help or invalid command notification msg
         }
+        */
     }
+
+    return (NULL);
 }
 
 void get_client_ip(int clientSock, char *buf){
