@@ -112,6 +112,7 @@ void perform_diff(int sock, request *req, list *client_list, list *diff_list) {
     send_data(sock, res.data, res.header.size);
 }
 
+/* just use perform_diff */
 void perform_pull(int sock, request *req) {
     printf("PERFORM PULL\n");
 }
@@ -131,6 +132,7 @@ void perform_fetch(int sock, request *req, int user) {
     send_file(sock, &res, file_req);
 
     len = asprintf(&msg_to_log, "%s sent to user", file_req);
+    log_action(user, msg_to_log);
     free(msg_to_log);
 }
 
@@ -178,6 +180,7 @@ void *thread_main(void *threadArgs) {
                 break;
             case FETCH:
                 perform_fetch(clientSock, &req, user);
+                break;
             case LEAVE:
                 log_action(user, "LEAVE");
                 perform_leave(clientSock, &req);

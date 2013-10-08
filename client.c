@@ -129,7 +129,6 @@ void perform_pull(int sock) {
 		int buffer_size = 0;
 		FILE *file;
 		while(!is_empty(server_list)){
-			// current->name
 			remove_front(server_list, free_file);
 
 			// remove file if exists
@@ -138,11 +137,12 @@ void perform_pull(int sock) {
 				remove(current->name);
 			} else {
 				req.header.type = FETCH;
-				req.header.size = sizeof(char) * (strlen(current->name) + 1);
+				req.header.size = sizeof(char) * (strlen(current->name));
 				req.data = current->name;
 
 				send_data(sock, &(req.header), sizeof(req.header));
 				send_data(sock, req.data, req.header.size);
+
 				get_response_header(sock, &(res.header), sizeof(res.header));
 
 				printf("receiving %s\n", current->name);
