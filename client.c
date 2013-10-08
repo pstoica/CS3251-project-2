@@ -48,6 +48,14 @@ int parse_command(char *command) {
 	}
 }
 
+void display_help(){
+	printf("Invalid Command\nValid commands include:\n\n");
+	printf("\tLIST\tDisplay a list of the .mp3 files currently on the GTmyMusicServer\n");
+	printf("\tDIFF\tDisplay a list of the .mp3 files currently on the server that are not present or that are different than the .mp3 files on this machine\n");
+	printf("\tPULL\tFetch the files displayed by DIFF. This will download any files not present or overwrite files with the same filename that are a different version\n");
+	printf("\tLEAVE\tDisconnect from the GTmyMusic Server & terminate the program\n\n");
+}
+
 void perform_list(int sock) {
 	request req;
 	response res;
@@ -223,6 +231,9 @@ int main(int argc, char *argv[]) {
 				break;
 			case LEAVE:
 				perform_leave(sock);
+				break;
+			default:
+				display_help();
 				break;
 		}
 	}
