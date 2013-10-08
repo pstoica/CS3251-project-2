@@ -17,4 +17,6 @@
 *.app
 GTmyMusic
 GTmyMusicServer
+
 .DS_Store
+log.txt

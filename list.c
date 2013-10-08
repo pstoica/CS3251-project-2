@@ -7,6 +7,7 @@
  **/
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include "list.h"
 
@@ -471,6 +472,43 @@ void traverse(list* llist, list_op do_func) {
 			i++;
 		}
 	}
+}
+
+char *traverse_to_string(list* llist, list_to_string do_func) {
+	char *buffer = calloc(1, sizeof(char) * BUFFER_SIZE);
+	char *file;
+	int message_size = 0;
+	int capacity = BUFFER_SIZE;
+
+	if (!is_empty(llist)) {
+		node *next = llist->head;
+		node *current;
+		int i = 0;
+		int size = llist->size; // just in case do_func does something bad
+		while (i < size) {
+			int j, length;
+
+			current = next;
+			next = current->next;
+
+			file = do_func(current->data);
+			length = strlen(file);
+
+            for (j = 0; j < length; j++) {
+            	if ((message_size + j) >= (capacity - (BUFFER_SIZE/2))) {
+		            capacity += BUFFER_SIZE;
+		            buffer = realloc(buffer, capacity);
+            	}
+                buffer[message_size + j] = file[j];
+            }
+
+            free(file);
+            message_size += length;
+			i++;
+		}
+	}
+
+	return buffer;
 }
 
 /** traverse
