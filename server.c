@@ -31,7 +31,7 @@ void *thread_main(void *args);   /* Main program of a thread */
 void perform_list(int sock, request *req);
 void perform_diff(int sock, request *req, list *client_list, list *diff_list);
 void perform_pull(int sock, request *req);
-void perform_fetch(int sock, request *req);
+void perform_fetch(int sock, request *req, int user);
 void perform_leave(int sock, request *req);
 
 void log_action(unsigned int user, char *message);
@@ -116,12 +116,25 @@ void perform_pull(int sock, request *req) {
     printf("PERFORM PULL\n");
 }
 
-void perform_fetch(int sock, request *req) {
-    printf("PERFORM FETCH\n");
+void perform_fetch(int sock, request *req, int user) {
+    response res;
+    char *file_req;
+    char *msg_to_log;
+    int len;
+
+    file_req = get_data(sock, req->header.size);
+    len = asprintf(&msg_to_log, "%s requested", file_req);
+
+    log_action(user, msg_to_log);
+    free(msg_to_log);
+
+    send_file(sock, &res, file_req);
+
+    len = asprintf(&msg_to_log, "%s sent to user", file_req);
+    free(msg_to_log);
 }
 
 void perform_leave(int sock, request *req) {
-    printf("PERFORM LEAVE\n");
     close(sock);
 }
 
@@ -161,59 +174,16 @@ void *thread_main(void *threadArgs) {
                 break;
             case PULL:
                 log_action(user, "PULL");
-                perform_pull(clientSock, &req);
+                perform_diff(clientSock, &req, client_list, diff_list);
                 break;
             case FETCH:
-                log_action(user, "FETCH");
-                perform_fetch(clientSock, &req);
+                perform_fetch(clientSock, &req, user);
             case LEAVE:
                 log_action(user, "LEAVE");
                 perform_leave(clientSock, &req);
                 running = false;
                 break;
         }
-
-        /*
-        if (strcmp(request, "LIST") == 0) {
-            empty_list(client_list, free_file);
-            read_directory(client_list);
-            build_and_send_list(client_list, clientSock);
-            
-        } else if (strcmp(request, "DIFF") == 0 || strcmp(request, "PULL") == 0) {
-            message = get_request(clientSock);
-
-            empty_list(client_list, free_file);
-            deserialize(client_list, message);
-
-            empty_list(file_list, free_file);
-            read_directory(file_list);
-
-            empty_list(diff_list, free_file);
-            traverse_diff(file_list, client_list, diff_list, file_comparator);
-
-            build_and_send_list(diff_list, clientSock);
-            
-        } else if (strcmp(request, "LEAVE") == 0) {
-            send_message("Bye!\r\n", clientSock);
-            log_action(user, "User signed out.");
-
-            close(clientSock);
-            break;
-        } else if(strcmp(request, "sendfile") == 0) {
-            char *file_req = strtok(NULL, "\r\n");
-            char *msg_to_log = NULL;
-            int len = asprintf(&msg_to_log, "%s requested", file_req);
-            log_action(user, msg_to_log);
-            free(msg_to_log);
-            send_file(file_req, clientSock);
-            len = asprintf(&msg_to_log, "%s sent to user", file_req);
-            free(msg_to_log);
-            
-        } else {
-            send_message("Invalid request.\n", clientSock);
-            // send back help or invalid command notification msg
-        }
-        */
     }
 
     return (NULL);

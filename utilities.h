@@ -67,9 +67,8 @@ void free_file(void *data);
 char *file_to_string(void *data);
 static char *checksum(FILE *inFile);            			/* Calculates md5 checksum for given filepointer */
 char *build_list(list *file_list);
-void build_and_send_list(list *file_list, int sock);	
-void send_file(char *filename, int sock);
-void recv_file(file_entry *file, int sock);
+bool send_file(int sock, response *res, char *filename);
+void recv_file(int sock, file_entry *file, int size);
 void deserialize_list(list *file_list, char *message);
 int file_comparator(const void *data1, const void *data2);
 char *timestamp();

@@ -13,102 +13,6 @@
 #include <time.h>
 #include "utilities.h"
 
-/*char *get_request(int clientSock) {
-    char buffer[BUFFER_SIZE];
-    int received_size = 0;
-    int message_size = 0;
-    int capacity = BUFFER_SIZE;
-    int i;
-
-    char *message = calloc(1, sizeof(char) * BUFFER_SIZE);
-    assert(message);
-
-    do {
-        //printf("Receiving...\n");
-        received_size = recv(clientSock, buffer, BUFFER_SIZE, 0);
-        //printf("Message length: %d\n", received_size);
-
-        if (received_size < 0) {
-            free(message);
-            return 0;
-        } else if (received_size > 0) {
-            for (i = 0; i < received_size; i++) {
-                message[message_size + i] = buffer[i];
-            }
-
-            message_size += received_size;
-            capacity += BUFFER_SIZE;
-            message = realloc(message, capacity);
-
-            memset(buffer, 0, BUFFER_SIZE);
-        }
-
-        //printf("%s\n", message);
-    } while (!is_valid(message));
-
-    return message;
-}*/
-
-void send_file(char *filename, int clnt_sock){
-	struct stat stbuf;
-	FILE *fp;
-	char buff[BUFFER_SIZE];
-	unsigned long int filesize = 0;
-	unsigned long int sentbytes = 0;
-	
-	memset(buff, 0, BUFFER_SIZE);
-	
-	if (stat(filename, &stbuf) == -1) {
-		die_with_error("stat() failed");
-	}
-    filesize = (unsigned long int) stbuf.st_size;
-    
-    fp = fopen(filename,"r");
-    if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
-    
-    while(sentbytes < filesize)
-	{
-		uint32_t read = fread(buff,1,BUFFER_SIZE,fp);
-		uint32_t written = send(clnt_sock, buff, read,0);
-		sentbytes += written;
-		memset(buff, 0, BUFFER_SIZE);
-	}
-	
-	fclose(fp);
-}
-
-void recv_file(file_entry *file, int sock){
-	FILE *fp;
-	char buff[BUFFER_SIZE];
-	unsigned long int recvbytes = 0;
-	unsigned long int byteswritten = 0;
-	
-	memset(buff, 0, BUFFER_SIZE);
-	
-	fp = fopen(file->name, "w");
-	if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
-	
-	uint32_t bytes = 0;
-	do {
-		bytes = recv(sock, buff, BUFFER_SIZE, 0);
-		if(bytes > 0){
-			recvbytes += bytes;
-			uint32_t written = fwrite(buff,1,bytes,fp);
-			byteswritten += written;
-			memset(buff, 0, BUFFER_SIZE);
-		}
-	} while(recvbytes < file->size && bytes > 0);
-	
-	fclose(fp);
-}
-
-int is_valid(char *message) {
-    int length = strlen(message);
-
-    // matches \r\n
-    return (message[length - 2] == 13 && message[length - 1] == 10);
-}
-
 int setup_server_socket(unsigned short port) {
     int servSock;
     struct sockaddr_in servAddr;      /* Local address */
@@ -163,7 +67,7 @@ bool get_request_header(int sock, request_header *header, int size) {
     while (remaining > 0) {
         result = recv(sock, (unsigned char *) header + received, remaining, 0);
 
-        if (result <= 0) die_with_error("read() failed");
+        if (result < 0) die_with_error("read() in get_request failed");
 
         received += result;
         remaining -= result;
@@ -180,7 +84,7 @@ bool get_response_header(int sock, response_header *header, int size) {
     while (remaining > 0) {
         result = recv(sock, (unsigned char *) header + received, remaining, 0);
 
-        if (result <= 0) die_with_error("read() failed");
+        if (result < 0) die_with_error("read() in get_response failed");
 
         received += result;
         remaining -= result;
@@ -195,10 +99,12 @@ unsigned char *get_data(int sock, int size) {
     int result;
     char *buffer = malloc(size);
 
+    memset(buffer, 0, size);
+
     while (remaining > 0) {
         result = recv(sock, (unsigned char *) buffer + received, remaining, 0);
 
-        if (result <= 0) die_with_error("read() failed");
+        if (result < 0) die_with_error("read() failed");
 
         received += result;
         remaining -= result;
@@ -207,17 +113,61 @@ unsigned char *get_data(int sock, int size) {
     return buffer;
 }
 
-int send_message(char *message, int sock) {
-    int bytes_sent = 0;
-    int message_length = strlen(message);
+bool send_file(int sock, response *res, char *filename) {
+    struct stat stbuf;
+    FILE *fp;
+    char buff[BUFFER_SIZE];
+    unsigned long int filesize = 0;
+    unsigned long int sentbytes = 0;
     
-    bytes_sent = send(sock, message, message_length, 0);
-
-    if (bytes_sent < 0) {
-        die_with_error("send() failed");
-    } else if (bytes_sent != message_length) {
-        die_with_error("send() - sent unexpected number of bytes\n");
+    memset(buff, 0, BUFFER_SIZE);
+    
+    if (stat(filename, &stbuf) == -1) {
+        die_with_error("stat() failed");
     }
+    filesize = (unsigned long int) stbuf.st_size;
+    
+    fp = fopen(filename,"r");
+    if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
+
+    res->header.size = filesize;
+    send_data(sock, &(res->header), sizeof(res->header));
+    
+    while(sentbytes < filesize)
+    {
+        uint32_t read = fread(buff,1,BUFFER_SIZE,fp);
+        uint32_t written = send(sock, buff, read,0);
+        sentbytes += written;
+        memset(buff, 0, BUFFER_SIZE);
+    }
+    
+    fclose(fp);
+}
+
+void recv_file(int sock, file_entry *file, int size) {
+    FILE *fp;
+    int received = 0;
+    int remaining = size;
+    int result;
+    char *buffer = malloc(size);
+    
+    memset(buffer, 0, size);
+    
+    fp = fopen(file->name, "w");
+    if(fp == 0 || fp == NULL) die_with_error("fopen() failed");
+
+    while (remaining > 0) {
+        result = recv(sock, (unsigned char *) buffer + received, remaining, 0);
+
+        if (result < 0) die_with_error("read() failed");
+
+        received += result;
+        remaining -= result;
+    }
+
+    uint32_t written = fwrite(buffer, 1, received, fp);
+    
+    fclose(fp);
 }
 
 int accept_connection(int servSock) {
@@ -349,30 +299,6 @@ void deserialize_list(list *file_list, char *message) {
         count++;
     }
 }
-
-void build_and_send_list(list *file_list, int clnt_sock){
-	file_entry *current = front(file_list);
-    char *buffer;
-    int buffer_size = 0;
-    int i;
-
-    if (is_empty(file_list)) {
-        send_message("\r\n", clnt_sock);
-    }
-
-	while(!is_empty(file_list)) {
-        remove_front(file_list, free_file);
-
-        buffer_size = asprintf(&buffer, "%s\n%s\n%lu\n", current->name, current->checksum, current->size);
-
-        send_message(buffer, clnt_sock);
-        free(buffer);
-
-        current = front(file_list);
-	}
-}
-
-
 
 int file_comparator(const void *data1, const void *data2) {
     int result;
